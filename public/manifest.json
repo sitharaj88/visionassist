@@ -4,8 +4,8 @@
   "description": "AI-Powered Visual Accessibility - Empowering independence through AI vision technology",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f0a1e",
-  "theme_color": "#a855f7",
+  "background_color": "#0c1222",
+  "theme_color": "#06b6d4",
   "orientation": "portrait-primary",
   "icons": [
     {

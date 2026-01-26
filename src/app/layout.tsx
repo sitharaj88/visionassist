@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,13 +12,20 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#06b6d4",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export const metadata: Metadata = {
   title: "VisionAssist - AI-Powered Visual Accessibility",
   description: "An AI-powered visual assistance tool helping visually impaired users understand their surroundings through camera analysis, text reading, object identification, and navigation assistance.",
   keywords: ["accessibility", "vision", "AI", "assistive technology", "visually impaired", "screen reader"],
   authors: [{ name: "VisionAssist Team" }],
   manifest: "/manifest.json",
-  themeColor: "#a855f7",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

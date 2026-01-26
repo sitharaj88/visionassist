@@ -53,6 +53,7 @@ interface UserSettings {
   autoSpeak: boolean;
   selectedMode: AnalysisMode;
   soundEnabled: boolean;
+  darkMode: boolean;
 }
 
 interface DemoScenario {
@@ -314,6 +315,7 @@ export default function VisionAssist() {
   const [showDemoMode, setShowDemoMode] = useState(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number } | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -359,7 +361,10 @@ export default function VisionAssist() {
         setAutoSpeak(settings.autoSpeak ?? true);
         setSelectedMode(settings.selectedMode ?? "scene");
         setSoundEnabled(settings.soundEnabled ?? true);
+        // Use saved preference, default to dark mode
+        setDarkMode(settings.darkMode ?? true);
       }
+      // No saved settings - default to dark mode (already set in initial state)
 
       // Load history
       const savedHistory = localStorage.getItem(HISTORY_KEY);
@@ -392,6 +397,7 @@ export default function VisionAssist() {
       autoSpeak,
       selectedMode,
       soundEnabled,
+      darkMode,
     };
 
     try {
@@ -399,7 +405,7 @@ export default function VisionAssist() {
     } catch (e) {
       console.error("Error saving settings:", e);
     }
-  }, [highContrast, fontSize, autoSpeak, selectedMode, soundEnabled]);
+  }, [highContrast, fontSize, autoSpeak, selectedMode, soundEnabled, darkMode]);
 
   // Save history to localStorage when it changes
   useEffect(() => {
@@ -909,75 +915,102 @@ export default function VisionAssist() {
       return;
     }
 
-    stopSpeaking();
+    const synth = window.speechSynthesis;
 
-    // Split long text into chunks for reliability
-    const chunks = splitTextIntoChunks(text, MAX_SPEECH_LENGTH);
-    speechChunksRef.current = chunks;
+    // Cancel any current speech first
+    synth.cancel();
+    speechChunksRef.current = [];
     currentChunkIndexRef.current = 0;
+    setIsSpeaking(false);
 
-    const speakChunk = (index: number) => {
-      if (index >= chunks.length) {
-        setIsSpeaking(false);
-        return;
-      }
+    // Helper function to actually speak
+    const doSpeak = () => {
+      // Split long text into chunks for reliability (Chrome has issues with long text)
+      const chunks = splitTextIntoChunks(text, MAX_SPEECH_LENGTH);
+      speechChunksRef.current = chunks;
+      currentChunkIndexRef.current = 0;
 
-      const utterance = new SpeechSynthesisUtterance(chunks[index]);
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      utterance.volume = 1;
-
-      // Get voices and set a default voice (fixes Chrome issue)
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        // Prefer English voices
-        const englishVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
-        utterance.voice = englishVoice;
-      }
-
-      utterance.onstart = () => setIsSpeaking(true);
-
-      utterance.onend = () => {
-        currentChunkIndexRef.current++;
-        if (currentChunkIndexRef.current < chunks.length) {
-          speakChunk(currentChunkIndexRef.current);
-        } else {
+      const speakChunk = (index: number) => {
+        if (index >= chunks.length) {
           setIsSpeaking(false);
+          return;
         }
+
+        const utterance = new SpeechSynthesisUtterance(chunks[index]);
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+
+        // Get voices and set a voice
+        const voices = synth.getVoices();
+        if (voices.length > 0) {
+          // Prefer Google US English or any English voice
+          const preferredVoice = voices.find(v => v.name.includes('Google US English'))
+            || voices.find(v => v.lang === 'en-US')
+            || voices.find(v => v.lang.startsWith('en'))
+            || voices[0];
+          utterance.voice = preferredVoice;
+        }
+
+        utterance.onstart = () => {
+          setIsSpeaking(true);
+        };
+
+        utterance.onend = () => {
+          currentChunkIndexRef.current++;
+          if (currentChunkIndexRef.current < chunks.length) {
+            // Small delay between chunks for Chrome
+            setTimeout(() => speakChunk(currentChunkIndexRef.current), 50);
+          } else {
+            setIsSpeaking(false);
+          }
+        };
+
+        utterance.onerror = (event) => {
+          setIsSpeaking(false);
+
+          // Don't show error for expected interruptions
+          const ignoredErrors = ["canceled", "interrupted", "not-allowed"];
+          if (!ignoredErrors.includes(event.error)) {
+            console.error("Speech synthesis error:", event.error);
+            setError("Unable to speak. Displaying text instead.");
+          }
+        };
+
+        speechSynthRef.current = utterance;
+
+        // Chrome fix: make sure synth is not paused
+        if (synth.paused) {
+          synth.resume();
+        }
+
+        // Speak the utterance
+        synth.speak(utterance);
       };
 
-      utterance.onerror = (event) => {
-        console.error("Speech synthesis error:", event.error);
-        setIsSpeaking(false);
-
-        // Don't show error for 'canceled' (user stopped)
-        if (event.error !== "canceled") {
-          setError("Unable to speak. Displaying text instead.");
-        }
-      };
-
-      speechSynthRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
+      speakChunk(0);
     };
 
-    // Chrome bug: voices may not be ready immediately
-    // If no voices, wait briefly and retry
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length === 0) {
-      // Wait for voices to load
-      const handleVoicesChanged = () => {
-        window.speechSynthesis.onvoiceschanged = null;
-        speakChunk(0);
-      };
-      window.speechSynthesis.onvoiceschanged = handleVoicesChanged;
-      // Fallback: try anyway after 100ms
-      setTimeout(() => {
-        if (currentChunkIndexRef.current === 0 && !speechSynthRef.current) {
-          speakChunk(0);
-        }
-      }, 100);
+    // Chrome requires voices to be loaded - they load asynchronously
+    const voices = synth.getVoices();
+    if (voices.length > 0) {
+      // Voices already loaded, speak after a brief delay
+      setTimeout(doSpeak, 100);
     } else {
-      speakChunk(0);
+      // Wait for voices to load
+      const voicesLoaded = () => {
+        synth.onvoiceschanged = null;
+        setTimeout(doSpeak, 100);
+      };
+      synth.onvoiceschanged = voicesLoaded;
+
+      // Fallback timeout in case onvoiceschanged doesn't fire
+      setTimeout(() => {
+        if (!speechSynthRef.current) {
+          synth.onvoiceschanged = null;
+          doSpeak();
+        }
+      }, 500);
     }
   }, [speechSupported]);
 
@@ -1174,32 +1207,59 @@ export default function VisionAssist() {
       className={`min-h-screen transition-colors duration-300 ${
         highContrast
           ? "bg-black text-yellow-300"
-          : "bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white"
+          : darkMode
+          ? "bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white"
+          : "bg-gradient-to-br from-slate-50 via-cyan-50 to-blue-50 text-slate-900"
       }`}
       style={{ fontSize: `${fontSize}px` }}
     >
       {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-lg bg-black/30 border-b border-white/10">
+      <header className={`sticky top-0 z-50 backdrop-blur-lg border-b ${
+        highContrast
+          ? "bg-black/90 border-yellow-300/30"
+          : darkMode
+          ? "bg-black/30 border-white/10"
+          : "bg-white/70 border-slate-200"
+      }`}>
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-xl ${highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-purple-500 to-pink-500"}`}>
+              <div className={`p-2 rounded-xl ${highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white"}`}>
                 <Eye className="w-8 h-8" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold">VisionAssist</h1>
-                <p className={`text-sm ${highContrast ? "text-yellow-200" : "text-purple-200"}`}>
+                <p className={`text-sm ${highContrast ? "text-yellow-200" : darkMode ? "text-cyan-200" : "text-cyan-600"}`}>
                   AI-Powered Visual Assistance
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Theme Toggle Button */}
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className={`p-3 rounded-xl transition-all ${
+                  highContrast
+                    ? "bg-yellow-300 text-black"
+                    : darkMode
+                    ? "bg-white/10 hover:bg-white/20"
+                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                }`}
+                aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+
               {/* Quick Actions Button */}
               <button
                 onClick={() => setShowQuickActions(true)}
                 className={`p-3 rounded-xl transition-all ${
-                  highContrast ? "bg-yellow-300 text-black" : "bg-white/10 hover:bg-white/20"
+                  highContrast
+                    ? "bg-yellow-300 text-black"
+                    : darkMode
+                    ? "bg-white/10 hover:bg-white/20"
+                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                 }`}
                 aria-label="Quick actions"
               >
@@ -1210,14 +1270,18 @@ export default function VisionAssist() {
               <button
                 onClick={() => setShowHistory(true)}
                 className={`p-3 rounded-xl transition-all relative ${
-                  highContrast ? "bg-yellow-300 text-black" : "bg-white/10 hover:bg-white/20"
+                  highContrast
+                    ? "bg-yellow-300 text-black"
+                    : darkMode
+                    ? "bg-white/10 hover:bg-white/20"
+                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                 }`}
                 aria-label="View history"
               >
                 <History className="w-5 h-5" />
                 {history.length > 0 && (
-                  <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center ${
-                    highContrast ? "bg-black text-yellow-300" : "bg-purple-500"
+                  <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center text-white ${
+                    highContrast ? "bg-black text-yellow-300" : "bg-cyan-500"
                   }`}>
                     {history.length}
                   </span>
@@ -1232,10 +1296,12 @@ export default function VisionAssist() {
                   !voiceSupported
                     ? "opacity-50 cursor-not-allowed bg-white/5"
                     : isListening
-                    ? "bg-red-500 animate-pulse"
+                    ? "bg-red-500 animate-pulse text-white"
                     : highContrast
                     ? "bg-yellow-300 text-black"
-                    : "bg-white/10 hover:bg-white/20"
+                    : darkMode
+                    ? "bg-white/10 hover:bg-white/20"
+                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                 }`}
                 aria-label={isListening ? "Stop listening" : "Start voice command"}
               >
@@ -1246,7 +1312,11 @@ export default function VisionAssist() {
               <button
                 onClick={() => setShowSettings(!showSettings)}
                 className={`p-3 rounded-xl transition-all ${
-                  highContrast ? "bg-yellow-300 text-black" : "bg-white/10 hover:bg-white/20"
+                  highContrast
+                    ? "bg-yellow-300 text-black"
+                    : darkMode
+                    ? "bg-white/10 hover:bg-white/20"
+                    : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                 }`}
                 aria-label="Settings"
               >
@@ -1259,17 +1329,27 @@ export default function VisionAssist() {
 
       {/* Settings Panel */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${darkMode ? "bg-black/80" : "bg-black/50"}`}>
           <div
             className={`w-full max-w-md rounded-2xl p-6 ${
-              highContrast ? "bg-black border-2 border-yellow-300" : "bg-slate-800"
+              highContrast
+                ? "bg-black border-2 border-yellow-300"
+                : darkMode
+                ? "bg-slate-800 text-white"
+                : "bg-white text-slate-900 shadow-xl"
             }`}
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold">Accessibility Settings</h2>
               <button
                 onClick={() => setShowSettings(false)}
-                className={`p-2 rounded-lg ${highContrast ? "bg-yellow-300 text-black" : "bg-white/10"}`}
+                className={`p-2 rounded-lg ${
+                  highContrast
+                    ? "bg-yellow-300 text-black"
+                    : darkMode
+                    ? "bg-white/10 hover:bg-white/20"
+                    : "bg-slate-100 hover:bg-slate-200"
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1315,7 +1395,7 @@ export default function VisionAssist() {
                     max="28"
                     value={fontSize}
                     onChange={(e) => setFontSize(Number(e.target.value))}
-                    className="flex-1 accent-purple-500"
+                    className="flex-1 accent-cyan-500"
                   />
                   <button
                     onClick={() => setFontSize(Math.min(28, fontSize + 2))}
@@ -1335,7 +1415,7 @@ export default function VisionAssist() {
                 <button
                   onClick={() => setAutoSpeak(!autoSpeak)}
                   className={`w-14 h-8 rounded-full transition-all ${
-                    autoSpeak ? (highContrast ? "bg-yellow-300" : "bg-purple-500") : "bg-white/20"
+                    autoSpeak ? (highContrast ? "bg-yellow-300" : "bg-cyan-500") : "bg-white/20"
                   }`}
                 >
                   <div
@@ -1396,7 +1476,7 @@ export default function VisionAssist() {
                 <button
                   onClick={() => setSoundEnabled(!soundEnabled)}
                   className={`w-14 h-8 rounded-full transition-all ${
-                    soundEnabled ? (highContrast ? "bg-yellow-300" : "bg-purple-500") : "bg-white/20"
+                    soundEnabled ? (highContrast ? "bg-yellow-300" : "bg-cyan-500") : "bg-white/20"
                   }`}
                 >
                   <div
@@ -1460,15 +1540,17 @@ export default function VisionAssist() {
                         highContrast ? "bg-yellow-300/10 border border-yellow-300/30" : "bg-white/5"
                       }`}
                     >
-                      <img
-                        src={item.thumbnail}
-                        alt="Analysis thumbnail"
-                        className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
-                      />
+                      {item.thumbnail && (
+                        <img
+                          src={item.thumbnail}
+                          alt="Analysis thumbnail"
+                          className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                        />
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-xs px-2 py-1 rounded ${
-                            highContrast ? "bg-yellow-300 text-black" : "bg-purple-500/30"
+                            highContrast ? "bg-yellow-300 text-black" : "bg-cyan-500/30"
                           }`}>
                             {modes.find((m) => m.id === item.mode)?.label}
                           </span>
@@ -1541,7 +1623,7 @@ export default function VisionAssist() {
                     : "bg-white/5 hover:bg-white/10"
                 }`}
               >
-                <div className={`p-3 rounded-full ${highContrast ? "bg-yellow-300 text-black" : "bg-purple-500"}`}>
+                <div className={`p-3 rounded-full ${highContrast ? "bg-yellow-300 text-black" : "bg-cyan-500"}`}>
                   <Eye className="w-6 h-6" />
                 </div>
                 <div className="text-left">
@@ -1599,7 +1681,7 @@ export default function VisionAssist() {
             {onboardingStep === 0 && (
               <div className="p-8 text-center">
                 <div className={`w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center ${
-                  highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-purple-500 to-pink-500"
+                  highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-cyan-500 to-blue-600"
                 }`}>
                   <Eye className="w-10 h-10" />
                 </div>
@@ -1610,7 +1692,7 @@ export default function VisionAssist() {
                 <button
                   onClick={() => setOnboardingStep(1)}
                   className={`w-full py-4 rounded-xl font-semibold ${
-                    highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-purple-500 to-pink-500"
+                    highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-cyan-500 to-blue-600"
                   }`}
                 >
                   Get Started
@@ -1640,7 +1722,7 @@ export default function VisionAssist() {
                   <button
                     onClick={() => setOnboardingStep(2)}
                     className={`px-6 py-2 rounded-xl ${
-                      highContrast ? "bg-yellow-300 text-black" : "bg-purple-500"
+                      highContrast ? "bg-yellow-300 text-black" : "bg-cyan-500"
                     }`}
                   >
                     Next
@@ -1671,7 +1753,7 @@ export default function VisionAssist() {
                   <button
                     onClick={() => setOnboardingStep(3)}
                     className={`px-6 py-2 rounded-xl ${
-                      highContrast ? "bg-yellow-300 text-black" : "bg-purple-500"
+                      highContrast ? "bg-yellow-300 text-black" : "bg-cyan-500"
                     }`}
                   >
                     Next
@@ -1694,7 +1776,7 @@ export default function VisionAssist() {
                 <button
                   onClick={() => setShowOnboarding(false)}
                   className={`w-full py-4 rounded-xl font-semibold ${
-                    highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-purple-500 to-pink-500"
+                    highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-cyan-500 to-blue-600"
                   }`}
                 >
                   Start Using VisionAssist
@@ -1743,7 +1825,7 @@ export default function VisionAssist() {
                     }`}
                   >
                     <div className={`p-2 rounded-lg ${
-                      highContrast ? "bg-yellow-300 text-black" : "bg-purple-500/30"
+                      highContrast ? "bg-yellow-300 text-black" : "bg-cyan-500/30"
                     }`}>
                       {modes.find((m) => m.id === scenario.mode)?.icon}
                     </div>
@@ -1751,7 +1833,7 @@ export default function VisionAssist() {
                       <div className="font-medium">{scenario.name}</div>
                       <div className="text-sm opacity-70">{scenario.description}</div>
                       <div className={`text-xs mt-1 ${
-                        highContrast ? "text-yellow-300" : "text-purple-400"
+                        highContrast ? "text-yellow-300" : "text-cyan-400"
                       }`}>
                         {modes.find((m) => m.id === scenario.mode)?.label}
                       </div>
@@ -1780,10 +1862,12 @@ export default function VisionAssist() {
                   selectedMode === mode.id
                     ? highContrast
                       ? "bg-yellow-300 text-black ring-4 ring-yellow-500"
-                      : "bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg shadow-purple-500/30"
+                      : "bg-gradient-to-r from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30 text-white"
                     : highContrast
                     ? "bg-black border-2 border-yellow-300"
-                    : "bg-white/10 hover:bg-white/20"
+                    : darkMode
+                    ? "bg-white/10 hover:bg-white/20"
+                    : "bg-white hover:bg-slate-100 shadow-md border border-slate-200"
                 }`}
                 aria-pressed={selectedMode === mode.id}
                 aria-label={`${mode.label}: ${mode.description}. Press ${mode.shortcut}`}
@@ -1803,10 +1887,14 @@ export default function VisionAssist() {
           {/* Camera/Image Section */}
           <div
             className={`rounded-2xl overflow-hidden ${
-              highContrast ? "bg-black border-2 border-yellow-300" : "bg-white/5 backdrop-blur-lg"
+              highContrast
+                ? "bg-black border-2 border-yellow-300"
+                : darkMode
+                ? "bg-white/5 backdrop-blur-lg"
+                : "bg-white shadow-lg border border-slate-200"
             }`}
           >
-            <div className="p-4 border-b border-white/10">
+            <div className={`p-4 border-b ${darkMode ? "border-white/10" : "border-slate-200"}`}>
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold flex items-center gap-2">
                   <Camera className="w-5 h-5" />
@@ -1892,7 +1980,7 @@ export default function VisionAssist() {
                   <button
                     onClick={startCamera}
                     className={`mt-4 px-6 py-3 rounded-xl font-medium ${
-                      highContrast ? "bg-yellow-300 text-black" : "bg-purple-500 hover:bg-purple-600"
+                      highContrast ? "bg-yellow-300 text-black" : "bg-cyan-500 hover:bg-cyan-600"
                     }`}
                   >
                     Try Again
@@ -1922,7 +2010,7 @@ export default function VisionAssist() {
                     }`}
                     aria-label="Capture image"
                   >
-                    <div className={`rounded-full ${isMobile ? "w-20 h-20" : "w-16 h-16"} ${highContrast ? "bg-black" : "bg-purple-500"}`} />
+                    <div className={`rounded-full ${isMobile ? "w-20 h-20" : "w-16 h-16"} ${highContrast ? "bg-black" : "bg-cyan-500"}`} />
                   </button>
                 </div>
               )}
@@ -1932,10 +2020,10 @@ export default function VisionAssist() {
                   <div className="text-center">
                     <div className="relative w-20 h-20 mx-auto mb-4">
                       <div className={`absolute inset-0 rounded-full border-4 border-t-transparent animate-spin ${
-                        highContrast ? "border-yellow-300" : "border-purple-500"
+                        highContrast ? "border-yellow-300" : "border-cyan-500"
                       }`} />
                       <div className={`absolute inset-2 rounded-full border-4 border-b-transparent animate-spin ${
-                        highContrast ? "border-yellow-300/50" : "border-pink-500"
+                        highContrast ? "border-yellow-300/50" : "border-teal-500"
                       }`} style={{ animationDirection: "reverse", animationDuration: "0.75s" }} />
                       <Eye className={`absolute inset-0 m-auto w-8 h-8 ${
                         highContrast ? "text-yellow-300" : "text-white"
@@ -1967,7 +2055,7 @@ export default function VisionAssist() {
                     } ${
                       highContrast
                         ? "bg-yellow-300 text-black"
-                        : "bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90"
+                        : "bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-white"
                     }`}
                   >
                     <Camera className={isMobile ? "w-6 h-6" : "w-5 h-5"} />
@@ -1980,7 +2068,9 @@ export default function VisionAssist() {
                     } ${
                       highContrast
                         ? "bg-black border-2 border-yellow-300"
-                        : "bg-white/10 hover:bg-white/20"
+                        : darkMode
+                        ? "bg-white/10 hover:bg-white/20"
+                        : "bg-slate-200 hover:bg-slate-300"
                     }`}
                   >
                     <Upload className={isMobile ? "w-6 h-6" : "w-5 h-5"} />
@@ -1991,7 +2081,9 @@ export default function VisionAssist() {
                     className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-sm transition-all active:scale-95 ${
                       highContrast
                         ? "bg-black border border-yellow-300/50 text-yellow-300"
-                        : "bg-white/5 hover:bg-white/10 text-white/70"
+                        : darkMode
+                        ? "bg-white/5 hover:bg-white/10 text-white/70"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-600"
                     }`}
                   >
                     <Play className="w-4 h-4" />
@@ -2014,7 +2106,9 @@ export default function VisionAssist() {
                     className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${
                       highContrast
                         ? "bg-black border-2 border-yellow-300"
-                        : "bg-white/10 hover:bg-white/20"
+                        : darkMode
+                        ? "bg-white/10 hover:bg-white/20"
+                        : "bg-slate-200 hover:bg-slate-300"
                     }`}
                   >
                     <X className="w-5 h-5" />
@@ -2026,7 +2120,7 @@ export default function VisionAssist() {
                       className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${
                         highContrast
                           ? "bg-yellow-300 text-black"
-                          : "bg-gradient-to-r from-purple-500 to-pink-500"
+                          : "bg-gradient-to-r from-cyan-500 to-blue-600"
                       }`}
                     >
                       <RefreshCw className="w-5 h-5" />
@@ -2041,10 +2135,14 @@ export default function VisionAssist() {
           {/* Results Section */}
           <div
             className={`rounded-2xl ${
-              highContrast ? "bg-black border-2 border-yellow-300" : "bg-white/5 backdrop-blur-lg"
+              highContrast
+                ? "bg-black border-2 border-yellow-300"
+                : darkMode
+                ? "bg-white/5 backdrop-blur-lg"
+                : "bg-white shadow-lg border border-slate-200"
             }`}
           >
-            <div className="p-4 border-b border-white/10">
+            <div className={`p-4 border-b ${darkMode ? "border-white/10" : "border-slate-200"}`}>
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold flex items-center gap-2">
                   {currentMode.icon}
@@ -2058,10 +2156,12 @@ export default function VisionAssist() {
                         onClick={copyToClipboard}
                         className={`p-2 rounded-lg transition-all ${
                           copied
-                            ? "bg-green-500"
+                            ? "bg-green-500 text-white"
                             : highContrast
                             ? "bg-yellow-300 text-black"
-                            : "bg-white/10 hover:bg-white/20"
+                            : darkMode
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-slate-100 hover:bg-slate-200"
                         }`}
                         aria-label={copied ? "Copied!" : "Copy to clipboard"}
                       >
@@ -2072,7 +2172,11 @@ export default function VisionAssist() {
                       <button
                         onClick={shareResults}
                         className={`p-2 rounded-lg transition-all ${
-                          highContrast ? "bg-yellow-300 text-black" : "bg-white/10 hover:bg-white/20"
+                          highContrast
+                            ? "bg-yellow-300 text-black"
+                            : darkMode
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-slate-100 hover:bg-slate-200"
                         }`}
                         aria-label="Share results"
                       >
@@ -2084,10 +2188,12 @@ export default function VisionAssist() {
                         onClick={() => (isSpeaking ? stopSpeaking() : speak(description))}
                         className={`p-2 rounded-lg transition-all ${
                           isSpeaking
-                            ? "bg-green-500 animate-pulse"
+                            ? "bg-green-500 animate-pulse text-white"
                             : highContrast
                             ? "bg-yellow-300 text-black"
-                            : "bg-white/10 hover:bg-white/20"
+                            : darkMode
+                            ? "bg-white/10 hover:bg-white/20"
+                            : "bg-slate-100 hover:bg-slate-200"
                         }`}
                         aria-label={isSpeaking ? "Stop speaking" : "Read aloud"}
                       >
@@ -2124,13 +2230,13 @@ export default function VisionAssist() {
 
             {/* Speaking indicator */}
             {isSpeaking && (
-              <div className={`p-4 border-t border-white/10 ${highContrast ? "bg-yellow-300/10" : "bg-purple-500/20"}`}>
+              <div className={`p-4 border-t border-white/10 ${highContrast ? "bg-yellow-300/10" : "bg-cyan-500/20"}`}>
                 <div className="flex items-center gap-3">
                   <div className="flex gap-1">
                     {[...Array(4)].map((_, i) => (
                       <div
                         key={i}
-                        className={`w-1 rounded-full ${highContrast ? "bg-yellow-300" : "bg-purple-400"}`}
+                        className={`w-1 rounded-full ${highContrast ? "bg-yellow-300" : "bg-cyan-400"}`}
                         style={{
                           height: "20px",
                           animation: `pulse 0.5s ease-in-out ${i * 0.1}s infinite alternate`,
