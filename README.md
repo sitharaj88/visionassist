@@ -1,36 +1,168 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VisionAssist - AI-Powered Visual Accessibility
 
-## Getting Started
+<div align="center">
 
-First, run the development server:
+🔮 **Empowering independence through AI vision technology**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+[![Next.js](https://img.shields.io/badge/Next.js-16.1-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![Google Gemini](https://img.shields.io/badge/Gemini-AI-blue?style=for-the-badge&logo=google)](https://ai.google.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+
+</div>
+
+## 🌟 Overview
+
+**VisionAssist** is an innovative AI-powered accessibility application designed to help visually impaired individuals understand and navigate their environment. Using advanced computer vision powered by Google's Gemini AI, VisionAssist provides real-time scene descriptions, text reading, object identification, and navigation assistance.
+
+## ✨ Features
+
+### 🎯 Core Capabilities
+
+| Mode | Description |
+|------|-------------|
+| 👁️ **Scene Description** | Get detailed descriptions of your surroundings including objects, people, and spatial layout |
+| 📖 **Text Reading** | Extract and read text from documents, signs, labels, and more |
+| 📦 **Object Identification** | Identify objects, products, brands, and get usage information |
+| 🧭 **Navigation Assistance** | Receive guidance about paths, obstacles, and safe navigation routes |
+| 🎨 **Color Detection** | Identify colors in scenes for clothing, food, and other color-dependent tasks |
+
+### ♿ Accessibility Features
+
+- **🔊 Text-to-Speech**: All results are automatically read aloud
+- **🎤 Voice Commands**: Control the app hands-free with voice commands
+- **⌨️ Keyboard Navigation**: Full keyboard support with shortcuts
+- **🌓 High Contrast Mode**: Enhanced visibility for low-vision users
+- **📏 Adjustable Text Size**: Customize text size from 14px to 28px
+- **🖥️ Screen Reader Compatible**: Proper ARIA labels and semantic HTML
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18+ 
+- npm or yarn
+- Google Gemini API key ([Get one here](https://makersuite.google.com/app/apikey))
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/visionassist.git
+   cd visionassist
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.local.example .env.local
+   ```
+   
+   Edit `.env.local` and add your Gemini API key:
+   ```
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+4. **Run the development server**
+   ```bash
+   npm run dev
+   ```
+
+5. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+## ⌨️ Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `1-5` | Switch between analysis modes |
+| `Space` | Capture image (when camera is active) |
+| `C` | Open camera |
+| `S` | Stop speech |
+| `R` | Repeat last description |
+| `V` | Activate voice command |
+| `Esc` | Close camera/settings |
+
+## 🎤 Voice Commands
+
+- **"Scene"** or **"Describe"** - Switch to scene description mode
+- **"Read"** or **"Text"** - Switch to text reading mode
+- **"Identify"** or **"Object"** - Switch to object identification mode
+- **"Navigate"** or **"Path"** - Switch to navigation mode
+- **"Color"** - Switch to color detection mode
+- **"Capture"** or **"Take photo"** - Capture current camera view
+- **"Stop"** or **"Quiet"** - Stop current speech
+- **"Repeat"** or **"Again"** - Repeat last description
+
+## 🛠️ Technology Stack
+
+- **Frontend**: Next.js 16.1, React 19, TypeScript
+- **Styling**: Tailwind CSS 4.0
+- **AI**: Google Gemini 1.5 Flash
+- **Icons**: Lucide React
+- **APIs**: Web Speech API (TTS & STT), MediaDevices API
+
+## 📁 Project Structure
+
+```
+visionassist/
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── analyze/
+│   │   │       └── route.ts      # Gemini AI integration
+│   │   ├── globals.css           # Global styles
+│   │   ├── layout.tsx            # Root layout
+│   │   └── page.tsx              # Main page
+│   ├── components/
+│   │   └── VisionAssist.tsx      # Main application component
+│   └── types/
+│       └── speech.d.ts           # Speech API types
+├── public/                        # Static assets
+├── .env.local.example             # Environment template
+└── package.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🎯 Use Cases
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Daily Navigation**: Help users navigate indoor and outdoor environments safely
+2. **Reading Mail**: Read letters, bills, and documents
+3. **Shopping**: Identify products, read labels, and check prices
+4. **Clothing Selection**: Identify colors and patterns for outfit coordination
+5. **Cooking**: Read recipes and identify ingredients
+6. **Public Spaces**: Navigate airports, malls, and transit stations
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🔒 Privacy & Security
 
-## Learn More
+- **No image storage**: Images are processed in real-time and not stored
+- **Local processing**: Voice commands are processed locally when possible
+- **Secure API**: All API calls are made server-side
+- **No tracking**: No user tracking or analytics
 
-To learn more about Next.js, take a look at the following resources:
+## 🤝 Contributing
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+We welcome contributions! Please see our contributing guidelines for more details.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📄 License
 
-## Deploy on Vercel
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🙏 Acknowledgments
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Google Gemini AI for powering the vision capabilities
+- The accessibility community for guidance and feedback
+- Open source contributors
+
+---
+
+<div align="center">
+
+**Built with ❤️ for accessibility**
+
+[Report Bug](https://github.com/yourusername/visionassist/issues) · [Request Feature](https://github.com/yourusername/visionassist/issues)
+
+</div>

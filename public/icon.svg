@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7"/>
+      <stop offset="100%" style="stop-color:#ec4899"/>
+    </linearGradient>
+    <linearGradient id="eyeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#e9d5ff"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#bgGradient)"/>
+  
+  <!-- Eye Shape -->
+  <ellipse cx="256" cy="256" rx="140" ry="85" fill="url(#eyeGradient)" opacity="0.95"/>
+  
+  <!-- Iris -->
+  <circle cx="256" cy="256" r="60" fill="#7c3aed"/>
+  
+  <!-- Pupil -->
+  <circle cx="256" cy="256" r="30" fill="#1e1b4b"/>
+  
+  <!-- Light Reflection -->
+  <circle cx="275" cy="240" r="12" fill="white" opacity="0.9"/>
+  <circle cx="290" cy="260" r="6" fill="white" opacity="0.6"/>
+  
+  <!-- AI Scan Lines -->
+  <g stroke="#a855f7" stroke-width="3" opacity="0.6">
+    <line x1="116" y1="256" x2="156" y2="256"/>
+    <line x1="356" y1="256" x2="396" y2="256"/>
+    <line x1="256" y1="171" x2="256" y2="131"/>
+    <line x1="256" y1="341" x2="256" y2="381"/>
+  </g>
+  
+  <!-- Corner Brackets -->
+  <g stroke="white" stroke-width="4" fill="none" opacity="0.8">
+    <!-- Top Left -->
+    <path d="M 100 150 L 100 100 L 150 100"/>
+    <!-- Top Right -->
+    <path d="M 362 100 L 412 100 L 412 150"/>
+    <!-- Bottom Left -->
+    <path d="M 100 362 L 100 412 L 150 412"/>
+    <!-- Bottom Right -->
+    <path d="M 362 412 L 412 412 L 412 362"/>
+  </g>
+</svg>
