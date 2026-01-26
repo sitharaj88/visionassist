@@ -915,6 +915,20 @@ export default function VisionAssist() {
       return;
     }
 
+    // Strip markdown formatting for cleaner speech
+    const cleanText = text
+      .replace(/\*\*([^*]+)\*\*/g, '$1')  // **bold**
+      .replace(/\*([^*]+)\*/g, '$1')       // *italic*
+      .replace(/__([^_]+)__/g, '$1')       // __bold__
+      .replace(/_([^_]+)_/g, '$1')         // _italic_
+      .replace(/#{1,6}\s*/g, '')           // # headings
+      .replace(/`([^`]+)`/g, '$1')         // `code`
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')  // [links](url)
+      .replace(/^\s*[-*+]\s+/gm, '')       // bullet points
+      .replace(/^\s*\d+\.\s+/gm, '')       // numbered lists
+      .replace(/\n{3,}/g, '\n\n')          // excessive newlines
+      .trim();
+
     const synth = window.speechSynthesis;
 
     // Cancel any current speech first
@@ -926,7 +940,7 @@ export default function VisionAssist() {
     // Helper function to actually speak
     const doSpeak = () => {
       // Split long text into chunks for reliability (Chrome has issues with long text)
-      const chunks = splitTextIntoChunks(text, MAX_SPEECH_LENGTH);
+      const chunks = splitTextIntoChunks(cleanText, MAX_SPEECH_LENGTH);
       speechChunksRef.current = chunks;
       currentChunkIndexRef.current = 0;
 
@@ -1225,21 +1239,21 @@ export default function VisionAssist() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-xl ${highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white"}`}>
-                <Eye className="w-8 h-8" />
+                <Eye className="w-6 h-6 sm:w-8 sm:h-8" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">VisionAssist</h1>
-                <p className={`text-sm ${highContrast ? "text-yellow-200" : darkMode ? "text-cyan-200" : "text-cyan-600"}`}>
+                <h1 className="text-xl sm:text-2xl font-bold">VisionAssist</h1>
+                <p className={`text-sm hidden sm:block ${highContrast ? "text-yellow-200" : darkMode ? "text-cyan-200" : "text-cyan-600"}`}>
                   AI-Powered Visual Assistance
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               {/* Theme Toggle Button */}
               <button
                 onClick={() => setDarkMode(!darkMode)}
-                className={`p-3 rounded-xl transition-all ${
+                className={`p-2 sm:p-3 rounded-xl transition-all ${
                   highContrast
                     ? "bg-yellow-300 text-black"
                     : darkMode
@@ -1254,7 +1268,7 @@ export default function VisionAssist() {
               {/* Quick Actions Button */}
               <button
                 onClick={() => setShowQuickActions(true)}
-                className={`p-3 rounded-xl transition-all ${
+                className={`p-2 sm:p-3 rounded-xl transition-all ${
                   highContrast
                     ? "bg-yellow-300 text-black"
                     : darkMode
@@ -1269,7 +1283,7 @@ export default function VisionAssist() {
               {/* History Button */}
               <button
                 onClick={() => setShowHistory(true)}
-                className={`p-3 rounded-xl transition-all relative ${
+                className={`p-2 sm:p-3 rounded-xl transition-all relative ${
                   highContrast
                     ? "bg-yellow-300 text-black"
                     : darkMode
@@ -1292,7 +1306,7 @@ export default function VisionAssist() {
               <button
                 onClick={toggleVoiceCommand}
                 disabled={!voiceSupported}
-                className={`p-3 rounded-xl transition-all ${
+                className={`p-2 sm:p-3 rounded-xl transition-all ${
                   !voiceSupported
                     ? "opacity-50 cursor-not-allowed bg-white/5"
                     : isListening
@@ -1311,7 +1325,7 @@ export default function VisionAssist() {
               {/* Settings Button */}
               <button
                 onClick={() => setShowSettings(!showSettings)}
-                className={`p-3 rounded-xl transition-all ${
+                className={`p-2 sm:p-3 rounded-xl transition-all ${
                   highContrast
                     ? "bg-yellow-300 text-black"
                     : darkMode
