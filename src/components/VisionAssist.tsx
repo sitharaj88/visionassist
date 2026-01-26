@@ -332,6 +332,11 @@ export default function VisionAssist() {
     setSpeechSupported("speechSynthesis" in window);
     setVoiceSupported("webkitSpeechRecognition" in window || "SpeechRecognition" in window);
 
+    // Pre-load voices for Chrome (loads asynchronously)
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+    }
+
     // Load saved settings
     try {
       const savedSettings = localStorage.getItem(STORAGE_KEY);
@@ -849,6 +854,14 @@ export default function VisionAssist() {
       utterance.pitch = 1;
       utterance.volume = 1;
 
+      // Get voices and set a default voice (fixes Chrome issue)
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        // Prefer English voices
+        const englishVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
+        utterance.voice = englishVoice;
+      }
+
       utterance.onstart = () => setIsSpeaking(true);
 
       utterance.onend = () => {
@@ -874,7 +887,25 @@ export default function VisionAssist() {
       window.speechSynthesis.speak(utterance);
     };
 
-    speakChunk(0);
+    // Chrome bug: voices may not be ready immediately
+    // If no voices, wait briefly and retry
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length === 0) {
+      // Wait for voices to load
+      const handleVoicesChanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        speakChunk(0);
+      };
+      window.speechSynthesis.onvoiceschanged = handleVoicesChanged;
+      // Fallback: try anyway after 100ms
+      setTimeout(() => {
+        if (currentChunkIndexRef.current === 0 && !speechSynthRef.current) {
+          speakChunk(0);
+        }
+      }, 100);
+    } else {
+      speakChunk(0);
+    }
   }, [speechSupported]);
 
   const stopSpeaking = useCallback(() => {
@@ -1701,15 +1732,16 @@ export default function VisionAssist() {
             </div>
 
             <div className="relative aspect-video bg-black">
-              {cameraActive && !capturedImage ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
-              ) : capturedImage ? (
+              {/* Always render video element so ref is available for camera */}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover"
+                style={{ display: cameraActive && !capturedImage ? 'block' : 'none' }}
+              />
+              {capturedImage ? (
                 <img
                   src={capturedImage}
                   alt="Captured"
