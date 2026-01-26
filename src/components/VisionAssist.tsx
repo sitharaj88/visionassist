@@ -312,6 +312,8 @@ export default function VisionAssist() {
   const [speechSupported, setSpeechSupported] = useState(true);
   const [voiceSupported, setVoiceSupported] = useState(true);
   const [showDemoMode, setShowDemoMode] = useState(false);
+  const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -331,6 +333,16 @@ export default function VisionAssist() {
     // Check feature support
     setSpeechSupported("speechSynthesis" in window);
     setVoiceSupported("webkitSpeechRecognition" in window || "SpeechRecognition" in window);
+
+    // Detect mobile device
+    const checkMobile = () => {
+      setIsMobile(
+        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        window.innerWidth < 768
+      );
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
 
     // Pre-load voices for Chrome (loads asynchronously)
     if ("speechSynthesis" in window) {
@@ -364,6 +376,10 @@ export default function VisionAssist() {
     } catch (e) {
       console.error("Error loading settings:", e);
     }
+
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+    };
   }, []);
 
   // Save settings to localStorage when they change
@@ -400,56 +416,77 @@ export default function VisionAssist() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Check for iOS Safari which has limited speech recognition support
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
     const SpeechRecognitionAPI = window.webkitSpeechRecognition || (window as unknown as { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition;
 
     if (SpeechRecognitionAPI) {
-      recognitionRef.current = new SpeechRecognitionAPI();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = "en-US";
+      try {
+        recognitionRef.current = new SpeechRecognitionAPI();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = "en-US";
+        // Increase max alternatives for better accuracy on mobile
+        recognitionRef.current.maxAlternatives = 3;
 
-      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
-        const command = event.results[0][0].transcript.toLowerCase();
-        handleVoiceCommand(command);
-      };
+        recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+          const command = event.results[0][0].transcript.toLowerCase();
+          handleVoiceCommand(command);
+        };
 
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
+        recognitionRef.current.onend = () => {
+          setIsListening(false);
+        };
 
-      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
-        setIsListening(false);
-        let errorMessage = "Voice command error. Please try again.";
+        recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+          setIsListening(false);
+          let errorMessage = "Voice command error. Please try again.";
 
-        switch (event.error) {
-          case "not-allowed":
-          case "service-not-allowed":
-            errorMessage = "Microphone permission denied. Please enable microphone access in your browser settings.";
-            break;
-          case "no-speech":
-            errorMessage = "No speech detected. Please try speaking again.";
-            break;
-          case "audio-capture":
-            errorMessage = "No microphone found. Please connect a microphone.";
-            break;
-          case "network":
-            errorMessage = "Network error during voice recognition. Please check your connection.";
-            break;
-          case "aborted":
-            // User cancelled, no need to show error
-            return;
-        }
+          switch (event.error) {
+            case "not-allowed":
+            case "service-not-allowed":
+              errorMessage = isIOS
+                ? "Microphone access not available. On iOS, voice commands require Chrome browser."
+                : "Microphone permission denied. Please enable microphone access in your browser settings.";
+              break;
+            case "no-speech":
+              errorMessage = "No speech detected. Tap mic and speak your command.";
+              break;
+            case "audio-capture":
+              errorMessage = "No microphone found. Please check your device settings.";
+              break;
+            case "network":
+              errorMessage = "Network required for voice recognition. Please check your connection.";
+              break;
+            case "aborted":
+              // User cancelled, no need to show error
+              return;
+          }
 
-        setError(errorMessage);
-        speak(errorMessage);
-      };
+          setError(errorMessage);
+          speak(errorMessage);
+        };
+      } catch {
+        setVoiceSupported(false);
+      }
     } else {
+      setVoiceSupported(false);
+    }
+
+    // iOS Safari doesn't support speech recognition well
+    if (isIOS && isSafari) {
       setVoiceSupported(false);
     }
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.abort();
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // Ignore abort errors
+        }
       }
     };
   }, []);
@@ -579,7 +616,8 @@ export default function VisionAssist() {
   const startCamera = async () => {
     try {
       setError(null);
-      
+      setVideoDimensions(null);
+
       // Check if mediaDevices is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         const errorMsg = "Camera not supported in this browser. Please use Chrome, Firefox, or Safari.";
@@ -601,38 +639,72 @@ export default function VisionAssist() {
         // permissions API not supported, continue with getUserMedia
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: cameraFacing,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      });
+      // Mobile-optimized camera constraints
+      const constraints: MediaStreamConstraints = {
+        video: isMobile
+          ? {
+              facingMode: cameraFacing,
+              // Let mobile devices choose optimal resolution
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+            }
+          : {
+              facingMode: cameraFacing,
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
+
+        // Wait for video metadata to get actual dimensions
+        videoRef.current.onloadedmetadata = () => {
+          if (videoRef.current) {
+            setVideoDimensions({
+              width: videoRef.current.videoWidth,
+              height: videoRef.current.videoHeight,
+            });
+          }
+        };
+
         setCameraActive(true);
-        speak("Camera activated. Press space to capture.");
+        triggerHaptic("capture");
+        speak(isMobile ? "Camera ready. Tap capture button." : "Camera activated. Press space to capture.");
       }
     } catch (err: unknown) {
       let errorMsg = "Unable to access camera.";
-      
+
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          errorMsg = "Camera permission denied. Please click the camera icon in your browser's address bar to allow access, then try again.";
+          errorMsg = isMobile
+            ? "Camera permission denied. Please allow camera access in your browser settings."
+            : "Camera permission denied. Please click the camera icon in your browser's address bar to allow access, then try again.";
         } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
           errorMsg = "No camera found. Please connect a camera and try again.";
         } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
           errorMsg = "Camera is in use by another application. Please close other apps using the camera and try again.";
         } else if (err.name === 'OverconstrainedError') {
-          // Try again with basic constraints
+          // Try again with basic constraints for older devices
           try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing } });
             if (videoRef.current) {
               videoRef.current.srcObject = stream;
               streamRef.current = stream;
+              videoRef.current.onloadedmetadata = () => {
+                if (videoRef.current) {
+                  setVideoDimensions({
+                    width: videoRef.current.videoWidth,
+                    height: videoRef.current.videoHeight,
+                  });
+                }
+              };
               setCameraActive(true);
-              speak("Camera activated. Press space to capture.");
+              triggerHaptic("capture");
+              speak("Camera activated.");
               return;
             }
           } catch {
@@ -644,7 +716,7 @@ export default function VisionAssist() {
           errorMsg = `Camera error: ${err.message}`;
         }
       }
-      
+
       setError(errorMsg);
       speak(errorMsg);
     }
@@ -659,6 +731,7 @@ export default function VisionAssist() {
       videoRef.current.srcObject = null;
     }
     setCameraActive(false);
+    setVideoDimensions(null);
   };
 
   const switchCamera = async () => {
@@ -917,14 +990,55 @@ export default function VisionAssist() {
     }
   }, []);
 
-  const toggleVoiceCommand = () => {
+  const toggleVoiceCommand = async () => {
     if (isListening) {
-      recognitionRef.current?.abort();
+      try {
+        recognitionRef.current?.abort();
+      } catch {
+        // Ignore abort errors
+      }
       setIsListening(false);
-    } else if (recognitionRef.current) {
+      return;
+    }
+
+    if (!recognitionRef.current) {
+      const errorMsg = isMobile
+        ? "Voice commands not available on this device. Try using Chrome browser."
+        : "Voice commands not supported in this browser.";
+      setError(errorMsg);
+      speak(errorMsg);
+      return;
+    }
+
+    // Request microphone permission explicitly on mobile
+    if (isMobile && navigator.mediaDevices) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Stop the stream immediately - we just needed permission
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        const errorMsg = "Please allow microphone access to use voice commands.";
+        setError(errorMsg);
+        speak(errorMsg);
+        return;
+      }
+    }
+
+    try {
       recognitionRef.current.start();
       setIsListening(true);
-      speak("Listening for command");
+      triggerHaptic("capture");
+      // Shorter message for mobile
+      speak(isMobile ? "Listening" : "Listening for command");
+    } catch (err) {
+      setIsListening(false);
+      if (err instanceof Error && err.message.includes("already started")) {
+        // Already listening, ignore
+        return;
+      }
+      const errorMsg = "Unable to start voice recognition. Please try again.";
+      setError(errorMsg);
+      speak(errorMsg);
     }
   };
 
@@ -1731,7 +1845,18 @@ export default function VisionAssist() {
               </div>
             </div>
 
-            <div className="relative aspect-video bg-black">
+            <div
+              className="relative bg-black overflow-hidden"
+              style={{
+                // Dynamic aspect ratio: use video dimensions if available, otherwise default to 4:3 on mobile, 16:9 on desktop
+                aspectRatio: videoDimensions
+                  ? `${videoDimensions.width} / ${videoDimensions.height}`
+                  : isMobile
+                  ? "3 / 4"
+                  : "16 / 9",
+                maxHeight: isMobile ? "60vh" : "70vh",
+              }}
+            >
               {/* Always render video element so ref is available for camera */}
               <video
                 ref={videoRef}
@@ -1739,7 +1864,7 @@ export default function VisionAssist() {
                 playsInline
                 muted
                 className="w-full h-full object-cover"
-                style={{ display: cameraActive && !capturedImage ? 'block' : 'none' }}
+                style={{ display: cameraActive && !capturedImage ? "block" : "none" }}
               />
               {capturedImage ? (
                 <img
@@ -1782,17 +1907,22 @@ export default function VisionAssist() {
 
               {/* Capture/Analyze overlay */}
               {cameraActive && !capturedImage && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
                   <button
-                    onClick={captureImage}
-                    className={`w-20 h-20 rounded-full flex items-center justify-center transition-all transform hover:scale-110 ${
+                    onClick={() => {
+                      captureImage();
+                      triggerHaptic("capture");
+                    }}
+                    className={`rounded-full flex items-center justify-center transition-all transform active:scale-95 hover:scale-105 ${
+                      isMobile ? "w-24 h-24" : "w-20 h-20"
+                    } ${
                       highContrast
-                        ? "bg-yellow-300 text-black"
+                        ? "bg-yellow-300 text-black shadow-lg shadow-yellow-300/50"
                         : "bg-white shadow-xl"
                     }`}
                     aria-label="Capture image"
                   >
-                    <div className={`w-16 h-16 rounded-full ${highContrast ? "bg-black" : "bg-purple-500"}`} />
+                    <div className={`rounded-full ${isMobile ? "w-20 h-20" : "w-16 h-16"} ${highContrast ? "bg-black" : "bg-purple-500"}`} />
                   </button>
                 </div>
               )}
@@ -1832,29 +1962,33 @@ export default function VisionAssist() {
                 <>
                   <button
                     onClick={startCamera}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${
+                    className={`flex-1 flex items-center justify-center gap-2 rounded-xl font-medium transition-all active:scale-95 ${
+                      isMobile ? "py-4 px-4 text-lg" : "py-3 px-4"
+                    } ${
                       highContrast
                         ? "bg-yellow-300 text-black"
                         : "bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90"
                     }`}
                   >
-                    <Camera className="w-5 h-5" />
-                    Open Camera
+                    <Camera className={isMobile ? "w-6 h-6" : "w-5 h-5"} />
+                    {isMobile ? "Camera" : "Open Camera"}
                   </button>
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${
+                    className={`flex-1 flex items-center justify-center gap-2 rounded-xl font-medium transition-all active:scale-95 ${
+                      isMobile ? "py-4 px-4 text-lg" : "py-3 px-4"
+                    } ${
                       highContrast
                         ? "bg-black border-2 border-yellow-300"
                         : "bg-white/10 hover:bg-white/20"
                     }`}
                   >
-                    <Upload className="w-5 h-5" />
-                    Upload Image
+                    <Upload className={isMobile ? "w-6 h-6" : "w-5 h-5"} />
+                    Upload
                   </button>
                   <button
                     onClick={() => setShowDemoMode(true)}
-                    className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-sm transition-all ${
+                    className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-sm transition-all active:scale-95 ${
                       highContrast
                         ? "bg-black border border-yellow-300/50 text-yellow-300"
                         : "bg-white/5 hover:bg-white/10 text-white/70"
@@ -1867,6 +2001,7 @@ export default function VisionAssist() {
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
+                    capture={isMobile ? "environment" : undefined}
                     onChange={handleFileUpload}
                     className="hidden"
                     aria-label="Upload image file"
