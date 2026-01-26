@@ -22,6 +22,11 @@ interface SpeechRecognitionAlternative {
   confidence: number;
 }
 
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+  message?: string;
+}
+
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
   interimResults: boolean;
@@ -30,7 +35,7 @@ interface SpeechRecognition extends EventTarget {
   onaudioend: ((this: SpeechRecognition, ev: Event) => void) | null;
   onaudiostart: ((this: SpeechRecognition, ev: Event) => void) | null;
   onend: ((this: SpeechRecognition, ev: Event) => void) | null;
-  onerror: ((this: SpeechRecognition, ev: Event) => void) | null;
+  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => void) | null;
   onnomatch: ((this: SpeechRecognition, ev: Event) => void) | null;
   onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => void) | null;
   onsoundend: ((this: SpeechRecognition, ev: Event) => void) | null;
@@ -53,5 +58,5 @@ interface Window {
   webkitSpeechRecognition: SpeechRecognitionConstructor;
 }
 
-declare var SpeechRecognition: SpeechRecognitionConstructor;
-declare var webkitSpeechRecognition: SpeechRecognitionConstructor;
+declare const SpeechRecognition: SpeechRecognitionConstructor;
+declare const webkitSpeechRecognition: SpeechRecognitionConstructor;

@@ -3,17 +3,57 @@ import { NextRequest, NextResponse } from "next/server";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
+// Timeout wrapper for API calls
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error("TIMEOUT")), ms);
+  });
+  return Promise.race([promise, timeout]);
+}
+
+// Validate request data
+function validateRequest(image: string, mode: string): { valid: boolean; error?: string; code?: string } {
+  if (!image) {
+    return { valid: false, error: "No image provided", code: "NO_IMAGE" };
+  }
+
+  // Check base64 size (rough estimate: base64 is ~33% larger than original)
+  const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+  const estimatedSizeBytes = (base64Data.length * 3) / 4;
+  const maxSizeBytes = 15 * 1024 * 1024; // 15MB limit
+
+  if (estimatedSizeBytes > maxSizeBytes) {
+    return {
+      valid: false,
+      error: "Image is too large. Please use an image under 10MB.",
+      code: "IMAGE_TOO_LARGE",
+    };
+  }
+
+  const validModes = ["scene", "read", "identify", "navigation", "color"];
+  if (mode && !validModes.includes(mode)) {
+    return { valid: false, error: "Invalid analysis mode", code: "INVALID_MODE" };
+  }
+
+  return { valid: true };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { image, mode } = await request.json();
 
-    if (!image) {
-      return NextResponse.json({ error: "No image provided" }, { status: 400 });
+    // Validate request
+    const validation = validateRequest(image, mode);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { error: validation.error, code: validation.code },
+        { status: 400 }
+      );
     }
 
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
-        { error: "API key not configured" },
+        { error: "AI service is not configured. Please try again later.", code: "API_KEY_MISSING" },
         { status: 500 }
       );
     }
@@ -98,15 +138,94 @@ Use specific color names when possible (navy blue vs. just blue, forest green vs
         prompt = `Describe this image in detail for a visually impaired person. Include information about objects, people, text, colors, and spatial layout. Be helpful and practical.`;
     }
 
-    const result = await model.generateContent([prompt, imagePart]);
+    // Call API with 30 second timeout
+    const result = await withTimeout(
+      model.generateContent([prompt, imagePart]),
+      30000
+    );
     const response = await result.response;
     const text = response.text();
 
+    if (!text || text.trim().length === 0) {
+      return NextResponse.json(
+        {
+          error: "Unable to analyze this image. Please try a different image or angle.",
+          code: "EMPTY_RESPONSE",
+        },
+        { status: 422 }
+      );
+    }
+
     return NextResponse.json({ description: text });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error analyzing image:", error);
+
+    // Handle specific error types
+    if (error instanceof Error) {
+      // Timeout error
+      if (error.message === "TIMEOUT") {
+        return NextResponse.json(
+          {
+            error: "Analysis took too long. Please try again with a clearer image.",
+            code: "TIMEOUT",
+          },
+          { status: 504 }
+        );
+      }
+
+      const errorMessage = error.message.toLowerCase();
+
+      // Rate limiting
+      if (errorMessage.includes("429") || errorMessage.includes("quota") || errorMessage.includes("rate")) {
+        return NextResponse.json(
+          {
+            error: "Service is busy. Please wait a moment and try again.",
+            code: "RATE_LIMITED",
+          },
+          { status: 429 }
+        );
+      }
+
+      // Network errors
+      if (errorMessage.includes("fetch") || errorMessage.includes("network") || errorMessage.includes("econnrefused")) {
+        return NextResponse.json(
+          {
+            error: "Connection issue. Please check your internet and try again.",
+            code: "NETWORK_ERROR",
+          },
+          { status: 503 }
+        );
+      }
+
+      // Content safety / blocked
+      if (errorMessage.includes("safety") || errorMessage.includes("blocked") || errorMessage.includes("harmful")) {
+        return NextResponse.json(
+          {
+            error: "This image cannot be analyzed. Please try a different image.",
+            code: "CONTENT_BLOCKED",
+          },
+          { status: 422 }
+        );
+      }
+
+      // Invalid image format
+      if (errorMessage.includes("image") || errorMessage.includes("decode") || errorMessage.includes("invalid")) {
+        return NextResponse.json(
+          {
+            error: "Unable to process this image format. Please try a JPEG or PNG image.",
+            code: "INVALID_IMAGE",
+          },
+          { status: 422 }
+        );
+      }
+    }
+
+    // Generic fallback
     return NextResponse.json(
-      { error: "Failed to analyze image" },
+      {
+        error: "Something went wrong. Please try again.",
+        code: "UNKNOWN_ERROR",
+      },
       { status: 500 }
     );
   }

@@ -11,7 +11,6 @@ import {
   Package,
   Navigation,
   Palette,
-  Loader2,
   RefreshCw,
   Sun,
   Moon,
@@ -21,8 +20,221 @@ import {
   ZoomOut,
   Settings,
   X,
-  ChevronDown,
+  Copy,
+  Share2,
+  History,
+  Zap,
+  Play,
+  Pause,
+  Check,
+  Trash2,
 } from "lucide-react";
+
+// Constants
+const STORAGE_KEY = "visionassist-settings";
+const HISTORY_KEY = "visionassist-history";
+const MAX_HISTORY_ITEMS = 10;
+const MAX_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const MAX_SPEECH_LENGTH = 2000; // Chrome has ~15 sec limit
+
+// Types
+interface HistoryItem {
+  id: string;
+  timestamp: number;
+  mode: AnalysisMode;
+  thumbnail: string;
+  description: string;
+}
+
+interface UserSettings {
+  highContrast: boolean;
+  fontSize: number;
+  autoSpeak: boolean;
+  selectedMode: AnalysisMode;
+  soundEnabled: boolean;
+}
+
+interface DemoScenario {
+  id: string;
+  name: string;
+  mode: AnalysisMode;
+  description: string;
+  response: string;
+}
+
+// Demo scenarios for offline/presentation mode
+const DEMO_SCENARIOS: DemoScenario[] = [
+  {
+    id: "street",
+    name: "Street Scene",
+    mode: "scene",
+    description: "Urban street with pedestrians",
+    response: `**Overview**: You're on a busy urban sidewalk during daytime. The street is well-lit with clear visibility.
+
+**Key Objects**:
+- Crosswalk directly ahead (12 o'clock, near)
+- Traffic light on the right (3 o'clock, medium distance)
+- Parked cars along the left side (9 o'clock)
+- Building entrance ahead on the right
+
+**People**: 3-4 pedestrians walking in various directions. One person approaching from 2 o'clock position, about 10 feet away.
+
+**Text**: "WALK" signal is lit on the traffic light. Store sign reads "Coffee Shop" on the right.
+
+**Safety Notes**: The crosswalk appears clear. Watch for a person approaching from your right.
+
+**Atmosphere**: Bright daylight, outdoor urban environment, appears to be mid-afternoon.`,
+  },
+  {
+    id: "document",
+    name: "Document",
+    mode: "read",
+    description: "Text document or menu",
+    response: `**Document Type**: Restaurant Menu
+
+**Extracted Text**:
+
+LUNCH SPECIALS
+Available 11am - 3pm
+
+1. Grilled Chicken Sandwich - $12.95
+   Served with fries and coleslaw
+
+2. Caesar Salad - $9.95
+   Romaine lettuce, parmesan, croutons
+
+3. Soup of the Day - $6.95
+   Ask your server for today's selection
+
+4. Club Sandwich - $13.95
+   Triple-decker with turkey, bacon, lettuce, tomato
+
+BEVERAGES
+Coffee - $3.50
+Tea - $3.00
+Soft Drinks - $2.95
+
+**Important Notes**: Prices include tax. 18% gratuity added for parties of 6 or more.`,
+  },
+  {
+    id: "product",
+    name: "Product",
+    mode: "identify",
+    description: "Consumer product",
+    response: `**Primary Object**: Smartphone
+
+**Brand/Model**: This appears to be a modern smartphone, approximately 6.1 inches diagonally.
+
+**Description**:
+- Color: Dark gray/black
+- Material: Glass front and back with metal frame
+- Size: Standard smartphone size, approximately 6 x 3 inches
+- Condition: Good condition, screen is intact
+
+**Usage**: This is a mobile communication device used for calls, texts, internet browsing, photography, and running applications.
+
+**Key Features Visible**:
+- Large touchscreen display
+- Camera array on back (multiple lenses)
+- Volume buttons on left side
+- Power button on right side`,
+  },
+  {
+    id: "room",
+    name: "Room Navigation",
+    mode: "navigation",
+    description: "Indoor room layout",
+    response: `**Path Analysis**: You are in what appears to be a living room. The main path is clear straight ahead (12 o'clock).
+
+**Obstacles**:
+- Coffee table at 12 o'clock, about 4 feet ahead (near)
+- Sofa on your left (9 o'clock), about 3 feet away
+- Floor lamp at 2 o'clock, about 6 feet away
+
+**Landmarks**:
+- Large window at 12 o'clock, far wall
+- TV mounted on wall at 1 o'clock
+- Doorway visible at 3 o'clock, approximately 15 feet away
+
+**Surfaces**: Hardwood flooring, level surface, no steps detected.
+
+**Doors/Exits**: One doorway at 3 o'clock position leading to what appears to be a hallway.
+
+**Immediate Hazards**: Watch for coffee table directly ahead at knee height.
+
+**Direction Guidance**: For the clearest path, move slightly right (toward 1 o'clock) to go around the coffee table, then proceed toward the doorway at 3 o'clock.`,
+  },
+  {
+    id: "clothing",
+    name: "Clothing Colors",
+    mode: "color",
+    description: "Clothing item",
+    response: `**Dominant Colors**: Navy blue is the primary color, covering about 80% of the garment.
+
+**Object Colors**:
+- Main fabric: Navy blue (deep, dark blue)
+- Buttons: Silver/chrome metallic
+- Stitching: Matching navy thread
+- Interior lining: Light gray
+
+**Color Combinations**: This is a solid navy blue shirt with subtle tonal stitching. The silver buttons provide a nice contrast.
+
+**Practical Info**: This appears to be a navy blue dress shirt. Navy is a versatile, professional color that pairs well with:
+- Gray or black pants
+- Khaki or tan chinos
+- Jeans for a casual look
+
+The color is consistent throughout, no patterns or prints. This would be appropriate for both business casual and formal settings.`,
+  },
+];
+
+// Utility functions
+const generateId = () => Math.random().toString(36).substring(2, 9);
+
+const compressThumbnail = (imageData: string, maxSize: number = 100): string => {
+  // Create a canvas to resize the image for thumbnail
+  if (typeof window === "undefined") return imageData;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const img = new Image();
+  img.src = imageData;
+  canvas.width = maxSize;
+  canvas.height = maxSize;
+  ctx?.drawImage(img, 0, 0, maxSize, maxSize);
+  return canvas.toDataURL("image/jpeg", 0.5);
+};
+
+const splitTextIntoChunks = (text: string, maxLength: number): string[] => {
+  if (text.length <= maxLength) return [text];
+
+  const chunks: string[] = [];
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  let currentChunk = "";
+
+  for (const sentence of sentences) {
+    if ((currentChunk + sentence).length > maxLength) {
+      if (currentChunk) chunks.push(currentChunk.trim());
+      currentChunk = sentence;
+    } else {
+      currentChunk += sentence;
+    }
+  }
+
+  if (currentChunk) chunks.push(currentChunk.trim());
+  return chunks;
+};
+
+const triggerHaptic = (pattern: "capture" | "success" | "error") => {
+  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+    const patterns = {
+      capture: [100],
+      success: [100, 100, 100],
+      error: [500],
+    };
+    navigator.vibrate(patterns[pattern]);
+  }
+};
 
 type AnalysisMode = "scene" | "read" | "identify" | "navigation" | "color";
 
@@ -73,6 +285,7 @@ const modes: ModeOption[] = [
 ];
 
 export default function VisionAssist() {
+  // Core state
   const [selectedMode, setSelectedMode] = useState<AnalysisMode>("scene");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [description, setDescription] = useState<string>("");
@@ -87,18 +300,105 @@ export default function VisionAssist() {
   const [error, setError] = useState<string | null>(null);
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("environment");
 
+  // New feature state
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  const [continuousMode, setContinuousMode] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [speechSupported, setSpeechSupported] = useState(true);
+  const [voiceSupported, setVoiceSupported] = useState(true);
+  const [showDemoMode, setShowDemoMode] = useState(false);
+
+  // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const continuousIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const speechChunksRef = useRef<string[]>([]);
+  const currentChunkIndexRef = useRef<number>(0);
 
-  // Initialize speech recognition
+  // Load settings from localStorage on mount
   useEffect(() => {
-    if (typeof window !== "undefined" && "webkitSpeechRecognition" in window) {
-      const SpeechRecognition = window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
+    if (typeof window === "undefined") return;
+
+    // Check feature support
+    setSpeechSupported("speechSynthesis" in window);
+    setVoiceSupported("webkitSpeechRecognition" in window || "SpeechRecognition" in window);
+
+    // Load saved settings
+    try {
+      const savedSettings = localStorage.getItem(STORAGE_KEY);
+      if (savedSettings) {
+        const settings: UserSettings = JSON.parse(savedSettings);
+        setHighContrast(settings.highContrast ?? false);
+        setFontSize(settings.fontSize ?? 18);
+        setAutoSpeak(settings.autoSpeak ?? true);
+        setSelectedMode(settings.selectedMode ?? "scene");
+        setSoundEnabled(settings.soundEnabled ?? true);
+      }
+
+      // Load history
+      const savedHistory = localStorage.getItem(HISTORY_KEY);
+      if (savedHistory) {
+        setHistory(JSON.parse(savedHistory));
+      }
+
+      // Check for first visit
+      const hasVisited = localStorage.getItem("visionassist-visited");
+      if (!hasVisited) {
+        setShowOnboarding(true);
+        localStorage.setItem("visionassist-visited", "true");
+      }
+    } catch (e) {
+      console.error("Error loading settings:", e);
+    }
+  }, []);
+
+  // Save settings to localStorage when they change
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const settings: UserSettings = {
+      highContrast,
+      fontSize,
+      autoSpeak,
+      selectedMode,
+      soundEnabled,
+    };
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch (e) {
+      console.error("Error saving settings:", e);
+    }
+  }, [highContrast, fontSize, autoSpeak, selectedMode, soundEnabled]);
+
+  // Save history to localStorage when it changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    } catch (e) {
+      console.error("Error saving history:", e);
+    }
+  }, [history]);
+
+  // Initialize speech recognition with error handling
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const SpeechRecognitionAPI = window.webkitSpeechRecognition || (window as unknown as { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition;
+
+    if (SpeechRecognitionAPI) {
+      recognitionRef.current = new SpeechRecognitionAPI();
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = false;
       recognitionRef.current.lang = "en-US";
@@ -111,6 +411,35 @@ export default function VisionAssist() {
       recognitionRef.current.onend = () => {
         setIsListening(false);
       };
+
+      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+        setIsListening(false);
+        let errorMessage = "Voice command error. Please try again.";
+
+        switch (event.error) {
+          case "not-allowed":
+          case "service-not-allowed":
+            errorMessage = "Microphone permission denied. Please enable microphone access in your browser settings.";
+            break;
+          case "no-speech":
+            errorMessage = "No speech detected. Please try speaking again.";
+            break;
+          case "audio-capture":
+            errorMessage = "No microphone found. Please connect a microphone.";
+            break;
+          case "network":
+            errorMessage = "Network error during voice recognition. Please check your connection.";
+            break;
+          case "aborted":
+            // User cancelled, no need to show error
+            return;
+        }
+
+        setError(errorMessage);
+        speak(errorMessage);
+      };
+    } else {
+      setVoiceSupported(false);
     }
 
     return () => {
@@ -121,6 +450,7 @@ export default function VisionAssist() {
   }, []);
 
   const handleVoiceCommand = (command: string) => {
+    // Mode commands
     if (command.includes("scene") || command.includes("describe")) {
       setSelectedMode("scene");
       speak("Scene description mode activated");
@@ -136,12 +466,44 @@ export default function VisionAssist() {
     } else if (command.includes("color") || command.includes("colour")) {
       setSelectedMode("color");
       speak("Color detection mode activated");
-    } else if (command.includes("capture") || command.includes("take") || command.includes("photo")) {
+    }
+    // Action commands
+    else if (command.includes("capture") || command.includes("take") || command.includes("photo")) {
       captureImage();
     } else if (command.includes("stop") || command.includes("quiet")) {
       stopSpeaking();
     } else if (command.includes("repeat") || command.includes("again")) {
       if (description) speak(description);
+    }
+    // New commands
+    else if (command.includes("history") || command.includes("previous")) {
+      if (history.length > 0) {
+        setShowHistory(true);
+        speak(`You have ${history.length} items in history`);
+      } else {
+        speak("No history yet. Capture an image first.");
+      }
+    } else if (command.includes("last result") || command.includes("last analysis")) {
+      if (history.length > 0) {
+        speak(history[0].description);
+      } else {
+        speak("No previous results available.");
+      }
+    } else if (command.includes("continuous on") || command.includes("auto capture")) {
+      if (cameraActive) {
+        setContinuousMode(true);
+        speak("Continuous mode enabled. I will analyze every 5 seconds.");
+      } else {
+        speak("Please open the camera first to use continuous mode.");
+      }
+    } else if (command.includes("continuous off") || command.includes("stop continuous")) {
+      setContinuousMode(false);
+      speak("Continuous mode disabled.");
+    } else if (command.includes("help")) {
+      speak("Available commands: capture, read, scene, navigate, identify, color, history, repeat, stop, continuous on, continuous off");
+    } else {
+      // Unrecognized command feedback
+      speak("Command not recognized. Say help for available commands.");
     }
   };
 
@@ -150,21 +512,26 @@ export default function VisionAssist() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      switch (e.key) {
+      switch (e.key.toLowerCase()) {
         case "1":
           setSelectedMode("scene");
+          speak("Scene mode");
           break;
         case "2":
           setSelectedMode("read");
+          speak("Read mode");
           break;
         case "3":
           setSelectedMode("identify");
+          speak("Identify mode");
           break;
         case "4":
           setSelectedMode("navigation");
+          speak("Navigation mode");
           break;
         case "5":
           setSelectedMode("color");
+          speak("Color mode");
           break;
         case " ":
           e.preventDefault();
@@ -182,8 +549,19 @@ export default function VisionAssist() {
         case "v":
           toggleVoiceCommand();
           break;
-        case "Escape":
+        case "h":
+          e.preventDefault();
+          setShowHistory(!showHistory);
+          break;
+        case "q":
+          e.preventDefault();
+          setShowQuickActions(!showQuickActions);
+          break;
+        case "escape":
           setShowSettings(false);
+          setShowHistory(false);
+          setShowQuickActions(false);
+          setShowOnboarding(false);
           if (cameraActive) stopCamera();
           break;
       }
@@ -191,7 +569,7 @@ export default function VisionAssist() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cameraActive, description]);
+  }, [cameraActive, description, showHistory, showQuickActions]);
 
   const startCamera = async () => {
     try {
@@ -283,7 +661,8 @@ export default function VisionAssist() {
     setCameraFacing(newFacing);
     if (cameraActive) {
       stopCamera();
-      setTimeout(() => startCamera(), 100);
+      // Increased delay for reliable camera switching on various devices
+      setTimeout(() => startCamera(), 300);
     }
   };
 
@@ -304,18 +683,74 @@ export default function VisionAssist() {
     }
   }, [selectedMode]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    setError(null);
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      const errorMsg = `Image is too large. Please use an image under ${MAX_FILE_SIZE_MB}MB.`;
+      setError(errorMsg);
+      speak(errorMsg);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      const errorMsg = "Please select an image file (JPEG, PNG, etc.)";
+      setError(errorMsg);
+      speak(errorMsg);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    speak("Checking image...");
+
+    // Validate dimensions
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      const maxDimension = 4096;
+      if (img.width > maxDimension || img.height > maxDimension) {
+        const errorMsg = "Image dimensions too large. Please use an image smaller than 4096x4096 pixels.";
+        setError(errorMsg);
+        speak(errorMsg);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
+      // Read file after validation passes
       const reader = new FileReader();
       reader.onload = (event) => {
         const imageData = event.target?.result as string;
         setCapturedImage(imageData);
         analyzeImage(imageData);
         speak("Image uploaded. Analyzing...");
+        triggerHaptic("capture");
+      };
+      reader.onerror = () => {
+        const errorMsg = "Failed to read image file. Please try a different file.";
+        setError(errorMsg);
+        speak(errorMsg);
       };
       reader.readAsDataURL(file);
-    }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      const errorMsg = "Unable to load image. Please try a different file.";
+      setError(errorMsg);
+      speak(errorMsg);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    img.src = objectUrl;
   };
 
   const analyzeImage = async (imageData: string) => {
@@ -335,40 +770,121 @@ export default function VisionAssist() {
       if (data.error) {
         setError(data.error);
         speak("Error: " + data.error);
+        triggerHaptic("error");
       } else {
         setDescription(data.description);
+        triggerHaptic("success");
+
+        // Add to history
+        const historyItem: HistoryItem = {
+          id: generateId(),
+          timestamp: Date.now(),
+          mode: selectedMode,
+          thumbnail: compressThumbnail(imageData),
+          description: data.description,
+        };
+
+        setHistory((prev) => {
+          const newHistory = [historyItem, ...prev].slice(0, MAX_HISTORY_ITEMS);
+          return newHistory;
+        });
+
         if (autoSpeak) {
           speak(data.description);
         }
       }
     } catch (err) {
-      setError("Failed to analyze image. Please try again.");
-      speak("Failed to analyze image. Please try again.");
+      const errorMsg = "Connection failed. Please check your internet and try again.";
+      setError(errorMsg);
+      speak(errorMsg);
+      triggerHaptic("error");
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const speak = (text: string) => {
-    if ("speechSynthesis" in window) {
-      stopSpeaking();
-      const utterance = new SpeechSynthesisUtterance(text);
+  // Continuous mode effect
+  useEffect(() => {
+    if (continuousMode && cameraActive && !capturedImage) {
+      continuousIntervalRef.current = setInterval(() => {
+        if (!isAnalyzing) {
+          captureImage();
+        }
+      }, 5000);
+
+      return () => {
+        if (continuousIntervalRef.current) {
+          clearInterval(continuousIntervalRef.current);
+        }
+      };
+    } else {
+      if (continuousIntervalRef.current) {
+        clearInterval(continuousIntervalRef.current);
+        continuousIntervalRef.current = null;
+      }
+    }
+  }, [continuousMode, cameraActive, capturedImage, isAnalyzing]);
+
+  const speak = useCallback((text: string) => {
+    if (!speechSupported || !("speechSynthesis" in window)) {
+      console.warn("Speech synthesis not supported");
+      return;
+    }
+
+    stopSpeaking();
+
+    // Split long text into chunks for reliability
+    const chunks = splitTextIntoChunks(text, MAX_SPEECH_LENGTH);
+    speechChunksRef.current = chunks;
+    currentChunkIndexRef.current = 0;
+
+    const speakChunk = (index: number) => {
+      if (index >= chunks.length) {
+        setIsSpeaking(false);
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(chunks[index]);
       utterance.rate = 0.9;
       utterance.pitch = 1;
       utterance.volume = 1;
+
       utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
+
+      utterance.onend = () => {
+        currentChunkIndexRef.current++;
+        if (currentChunkIndexRef.current < chunks.length) {
+          speakChunk(currentChunkIndexRef.current);
+        } else {
+          setIsSpeaking(false);
+        }
+      };
+
+      utterance.onerror = (event) => {
+        console.error("Speech synthesis error:", event.error);
+        setIsSpeaking(false);
+
+        // Don't show error for 'canceled' (user stopped)
+        if (event.error !== "canceled") {
+          setError("Unable to speak. Displaying text instead.");
+        }
+      };
+
       speechSynthRef.current = utterance;
       window.speechSynthesis.speak(utterance);
-    }
-  };
+    };
 
-  const stopSpeaking = () => {
+    speakChunk(0);
+  }, [speechSupported]);
+
+  const stopSpeaking = useCallback(() => {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
+      speechChunksRef.current = [];
+      currentChunkIndexRef.current = 0;
       setIsSpeaking(false);
     }
-  };
+  }, []);
 
   const toggleVoiceCommand = () => {
     if (isListening) {
@@ -386,6 +902,124 @@ export default function VisionAssist() {
     setDescription("");
     setError(null);
     stopSpeaking();
+  };
+
+  // Copy to clipboard
+  const copyToClipboard = async () => {
+    if (!description) return;
+
+    try {
+      await navigator.clipboard.writeText(description);
+      setCopied(true);
+      speak("Copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      setError("Failed to copy. Please try selecting the text manually.");
+      speak("Failed to copy");
+    }
+  };
+
+  // Share functionality
+  const shareResults = async () => {
+    if (!description) return;
+
+    const shareData = {
+      title: "VisionAssist Analysis",
+      text: `[${modes.find((m) => m.id === selectedMode)?.label}]\n\n${description}`,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        speak("Shared successfully");
+      } catch (err) {
+        // User cancelled or error
+        if ((err as Error).name !== "AbortError") {
+          copyToClipboard(); // Fallback to copy
+        }
+      }
+    } else {
+      // Fallback to copy
+      copyToClipboard();
+    }
+  };
+
+  // Delete history item
+  const deleteHistoryItem = (id: string) => {
+    setHistory((prev) => prev.filter((item) => item.id !== id));
+    speak("Removed from history");
+  };
+
+  // Clear all history
+  const clearHistory = () => {
+    setHistory([]);
+    speak("History cleared");
+    setShowHistory(false);
+  };
+
+  // Load history item
+  const loadHistoryItem = (item: HistoryItem) => {
+    setCapturedImage(item.thumbnail);
+    setDescription(item.description);
+    setSelectedMode(item.mode);
+    setShowHistory(false);
+    speak("Loaded from history");
+  };
+
+  // Quick action handlers
+  const quickScan = () => {
+    setSelectedMode("scene");
+    setShowQuickActions(false);
+    if (cameraActive) {
+      captureImage();
+    } else {
+      startCamera();
+      speak("Opening camera for quick scan");
+    }
+  };
+
+  const quickRead = () => {
+    setSelectedMode("read");
+    setShowQuickActions(false);
+    if (cameraActive) {
+      captureImage();
+    } else {
+      startCamera();
+      speak("Opening camera to read text");
+    }
+  };
+
+  const quickNavigate = () => {
+    setSelectedMode("navigation");
+    setShowQuickActions(false);
+    if (cameraActive) {
+      captureImage();
+    } else {
+      startCamera();
+      speak("Opening camera for navigation help");
+    }
+  };
+
+  // Demo mode handler
+  const runDemo = (scenario: DemoScenario) => {
+    setShowDemoMode(false);
+    setSelectedMode(scenario.mode);
+    setDescription(scenario.response);
+    triggerHaptic("success");
+
+    // Add to history
+    const historyItem: HistoryItem = {
+      id: generateId(),
+      timestamp: Date.now(),
+      mode: scenario.mode,
+      thumbnail: "", // Demo items don't have thumbnails
+      description: scenario.response,
+    };
+    setHistory((prev) => [historyItem, ...prev].slice(0, MAX_HISTORY_ITEMS));
+
+    if (autoSpeak) {
+      speak(scenario.response);
+    }
   };
 
   const currentMode = modes.find((m) => m.id === selectedMode)!;
@@ -416,11 +1050,43 @@ export default function VisionAssist() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Quick Actions Button */}
+              <button
+                onClick={() => setShowQuickActions(true)}
+                className={`p-3 rounded-xl transition-all ${
+                  highContrast ? "bg-yellow-300 text-black" : "bg-white/10 hover:bg-white/20"
+                }`}
+                aria-label="Quick actions"
+              >
+                <Zap className="w-5 h-5" />
+              </button>
+
+              {/* History Button */}
+              <button
+                onClick={() => setShowHistory(true)}
+                className={`p-3 rounded-xl transition-all relative ${
+                  highContrast ? "bg-yellow-300 text-black" : "bg-white/10 hover:bg-white/20"
+                }`}
+                aria-label="View history"
+              >
+                <History className="w-5 h-5" />
+                {history.length > 0 && (
+                  <span className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center ${
+                    highContrast ? "bg-black text-yellow-300" : "bg-purple-500"
+                  }`}>
+                    {history.length}
+                  </span>
+                )}
+              </button>
+
               {/* Voice Command Button */}
               <button
                 onClick={toggleVoiceCommand}
+                disabled={!voiceSupported}
                 className={`p-3 rounded-xl transition-all ${
-                  isListening
+                  !voiceSupported
+                    ? "opacity-50 cursor-not-allowed bg-white/5"
+                    : isListening
                     ? "bg-red-500 animate-pulse"
                     : highContrast
                     ? "bg-yellow-300 text-black"
@@ -564,6 +1230,389 @@ export default function VisionAssist() {
                   <span>Modes</span>
                   <kbd className={`px-2 py-1 rounded ${highContrast ? "bg-yellow-300 text-black" : "bg-white/10"}`}>1-5</kbd>
                 </div>
+                <div className="flex justify-between">
+                  <span>History</span>
+                  <kbd className={`px-2 py-1 rounded ${highContrast ? "bg-yellow-300 text-black" : "bg-white/10"}`}>H</kbd>
+                </div>
+                <div className="flex justify-between">
+                  <span>Quick Actions</span>
+                  <kbd className={`px-2 py-1 rounded ${highContrast ? "bg-yellow-300 text-black" : "bg-white/10"}`}>Q</kbd>
+                </div>
+              </div>
+            </div>
+
+            {/* Sound Toggle */}
+            <div className="mt-6 pt-6 border-t border-white/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Volume2 className="w-5 h-5" />
+                  <span>Sound Effects</span>
+                </div>
+                <button
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className={`w-14 h-8 rounded-full transition-all ${
+                    soundEnabled ? (highContrast ? "bg-yellow-300" : "bg-purple-500") : "bg-white/20"
+                  }`}
+                >
+                  <div
+                    className={`w-6 h-6 rounded-full bg-white shadow-lg transform transition-transform ${
+                      soundEnabled ? "translate-x-7" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Panel */}
+      {showHistory && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div
+            className={`w-full max-w-2xl max-h-[80vh] rounded-2xl overflow-hidden ${
+              highContrast ? "bg-black border-2 border-yellow-300" : "bg-slate-800"
+            }`}
+          >
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <History className="w-5 h-5" />
+                Analysis History
+              </h2>
+              <div className="flex items-center gap-2">
+                {history.length > 0 && (
+                  <button
+                    onClick={clearHistory}
+                    className={`px-3 py-1 rounded-lg text-sm ${
+                      highContrast ? "bg-red-900 text-red-300" : "bg-red-500/20 text-red-300"
+                    }`}
+                  >
+                    Clear All
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className={`p-2 rounded-lg ${highContrast ? "bg-yellow-300 text-black" : "bg-white/10"}`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
+              {history.length === 0 ? (
+                <div className="text-center py-12 opacity-70">
+                  <History className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No history yet</p>
+                  <p className="text-sm mt-2">Capture an image to get started</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {history.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`p-4 rounded-xl flex gap-4 ${
+                        highContrast ? "bg-yellow-300/10 border border-yellow-300/30" : "bg-white/5"
+                      }`}
+                    >
+                      <img
+                        src={item.thumbnail}
+                        alt="Analysis thumbnail"
+                        className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-xs px-2 py-1 rounded ${
+                            highContrast ? "bg-yellow-300 text-black" : "bg-purple-500/30"
+                          }`}>
+                            {modes.find((m) => m.id === item.mode)?.label}
+                          </span>
+                          <span className="text-xs opacity-50">
+                            {new Date(item.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-sm line-clamp-2 opacity-80">{item.description}</p>
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={() => loadHistoryItem(item)}
+                            className={`text-xs px-3 py-1 rounded ${
+                              highContrast ? "bg-yellow-300 text-black" : "bg-white/10"
+                            }`}
+                          >
+                            Load
+                          </button>
+                          <button
+                            onClick={() => speak(item.description)}
+                            className={`text-xs px-3 py-1 rounded ${
+                              highContrast ? "bg-yellow-300 text-black" : "bg-white/10"
+                            }`}
+                          >
+                            Read
+                          </button>
+                          <button
+                            onClick={() => deleteHistoryItem(item.id)}
+                            className="text-xs px-3 py-1 rounded bg-red-500/20 text-red-300"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Actions Panel */}
+      {showQuickActions && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-4">
+          <div
+            className={`w-full max-w-md rounded-2xl ${
+              highContrast ? "bg-black border-2 border-yellow-300" : "bg-slate-800"
+            }`}
+          >
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                Quick Actions
+              </h2>
+              <button
+                onClick={() => setShowQuickActions(false)}
+                className={`p-2 rounded-lg ${highContrast ? "bg-yellow-300 text-black" : "bg-white/10"}`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              <button
+                onClick={quickScan}
+                className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all ${
+                  highContrast
+                    ? "bg-yellow-300/10 border border-yellow-300 hover:bg-yellow-300/20"
+                    : "bg-white/5 hover:bg-white/10"
+                }`}
+              >
+                <div className={`p-3 rounded-full ${highContrast ? "bg-yellow-300 text-black" : "bg-purple-500"}`}>
+                  <Eye className="w-6 h-6" />
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold">What&apos;s Around Me?</div>
+                  <div className="text-sm opacity-70">Quick scene description</div>
+                </div>
+              </button>
+
+              <button
+                onClick={quickRead}
+                className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all ${
+                  highContrast
+                    ? "bg-yellow-300/10 border border-yellow-300 hover:bg-yellow-300/20"
+                    : "bg-white/5 hover:bg-white/10"
+                }`}
+              >
+                <div className={`p-3 rounded-full ${highContrast ? "bg-yellow-300 text-black" : "bg-blue-500"}`}>
+                  <BookOpen className="w-6 h-6" />
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold">Read This Now</div>
+                  <div className="text-sm opacity-70">Extract and read text</div>
+                </div>
+              </button>
+
+              <button
+                onClick={quickNavigate}
+                className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all ${
+                  highContrast
+                    ? "bg-yellow-300/10 border border-yellow-300 hover:bg-yellow-300/20"
+                    : "bg-white/5 hover:bg-white/10"
+                }`}
+              >
+                <div className={`p-3 rounded-full ${highContrast ? "bg-yellow-300 text-black" : "bg-green-500"}`}>
+                  <Navigation className="w-6 h-6" />
+                </div>
+                <div className="text-left">
+                  <div className="font-semibold">Help Me Navigate</div>
+                  <div className="text-sm opacity-70">Find paths and obstacles</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Onboarding Tutorial */}
+      {showOnboarding && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+          <div
+            className={`w-full max-w-lg rounded-2xl overflow-hidden ${
+              highContrast ? "bg-black border-2 border-yellow-300" : "bg-slate-800"
+            }`}
+          >
+            {onboardingStep === 0 && (
+              <div className="p-8 text-center">
+                <div className={`w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center ${
+                  highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-purple-500 to-pink-500"
+                }`}>
+                  <Eye className="w-10 h-10" />
+                </div>
+                <h2 className="text-2xl font-bold mb-4">Welcome to VisionAssist</h2>
+                <p className="opacity-80 mb-8">
+                  AI-powered visual assistance to help you understand your surroundings, read text, identify objects, and navigate safely.
+                </p>
+                <button
+                  onClick={() => setOnboardingStep(1)}
+                  className={`w-full py-4 rounded-xl font-semibold ${
+                    highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-purple-500 to-pink-500"
+                  }`}
+                >
+                  Get Started
+                </button>
+                <button
+                  onClick={() => setShowOnboarding(false)}
+                  className="w-full py-3 mt-3 opacity-70 hover:opacity-100"
+                >
+                  Skip Tutorial
+                </button>
+              </div>
+            )}
+
+            {onboardingStep === 1 && (
+              <div className="p-8">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Camera className="w-6 h-6" />
+                  Capture Images
+                </h3>
+                <p className="opacity-80 mb-6">
+                  Use your camera or upload an image. Press <kbd className="px-2 py-1 rounded bg-white/10">Space</kbd> to capture when camera is open.
+                </p>
+                <div className="flex justify-between">
+                  <button onClick={() => setOnboardingStep(0)} className="px-4 py-2 opacity-70">
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setOnboardingStep(2)}
+                    className={`px-6 py-2 rounded-xl ${
+                      highContrast ? "bg-yellow-300 text-black" : "bg-purple-500"
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {onboardingStep === 2 && (
+              <div className="p-8">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Mic className="w-6 h-6" />
+                  Voice Commands
+                </h3>
+                <p className="opacity-80 mb-4">
+                  Control the app hands-free with voice commands:
+                </p>
+                <ul className="space-y-2 mb-6 text-sm opacity-80">
+                  <li>&quot;Capture&quot; - Take a photo</li>
+                  <li>&quot;Scene / Read / Navigate / Identify / Color&quot; - Change mode</li>
+                  <li>&quot;Repeat&quot; - Hear the result again</li>
+                  <li>&quot;History&quot; - Access previous results</li>
+                </ul>
+                <div className="flex justify-between">
+                  <button onClick={() => setOnboardingStep(1)} className="px-4 py-2 opacity-70">
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setOnboardingStep(3)}
+                    className={`px-6 py-2 rounded-xl ${
+                      highContrast ? "bg-yellow-300 text-black" : "bg-purple-500"
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {onboardingStep === 3 && (
+              <div className="p-8 text-center">
+                <div className={`w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center ${
+                  highContrast ? "bg-yellow-300 text-black" : "bg-green-500"
+                }`}>
+                  <Check className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold mb-4">You&apos;re All Set!</h3>
+                <p className="opacity-80 mb-8">
+                  Press <kbd className="px-2 py-1 rounded bg-white/10">V</kbd> for voice commands, <kbd className="px-2 py-1 rounded bg-white/10">H</kbd> for history, or <kbd className="px-2 py-1 rounded bg-white/10">Q</kbd> for quick actions.
+                </p>
+                <button
+                  onClick={() => setShowOnboarding(false)}
+                  className={`w-full py-4 rounded-xl font-semibold ${
+                    highContrast ? "bg-yellow-300 text-black" : "bg-gradient-to-r from-purple-500 to-pink-500"
+                  }`}
+                >
+                  Start Using VisionAssist
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Demo Mode Panel */}
+      {showDemoMode && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div
+            className={`w-full max-w-lg rounded-2xl overflow-hidden ${
+              highContrast ? "bg-black border-2 border-yellow-300" : "bg-slate-800"
+            }`}
+          >
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Play className="w-5 h-5" />
+                Demo Mode
+              </h2>
+              <button
+                onClick={() => setShowDemoMode(false)}
+                className={`p-2 rounded-lg ${highContrast ? "bg-yellow-300 text-black" : "bg-white/10"}`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4">
+              <p className="text-sm opacity-70 mb-4">
+                Try VisionAssist without a camera. Select a scenario to see how the app analyzes different situations.
+              </p>
+
+              <div className="space-y-3">
+                {DEMO_SCENARIOS.map((scenario) => (
+                  <button
+                    key={scenario.id}
+                    onClick={() => runDemo(scenario)}
+                    className={`w-full p-4 rounded-xl flex items-center gap-4 text-left transition-all ${
+                      highContrast
+                        ? "bg-yellow-300/10 border border-yellow-300 hover:bg-yellow-300/20"
+                        : "bg-white/5 hover:bg-white/10"
+                    }`}
+                  >
+                    <div className={`p-2 rounded-lg ${
+                      highContrast ? "bg-yellow-300 text-black" : "bg-purple-500/30"
+                    }`}>
+                      {modes.find((m) => m.id === scenario.mode)?.icon}
+                    </div>
+                    <div>
+                      <div className="font-medium">{scenario.name}</div>
+                      <div className="text-sm opacity-70">{scenario.description}</div>
+                      <div className={`text-xs mt-1 ${
+                        highContrast ? "text-yellow-300" : "text-purple-400"
+                      }`}>
+                        {modes.find((m) => m.id === scenario.mode)?.label}
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -619,13 +1668,34 @@ export default function VisionAssist() {
                   {cameraActive ? "Live Camera" : "Capture Image"}
                 </h2>
                 {cameraActive && (
-                  <button
-                    onClick={switchCamera}
-                    className={`p-2 rounded-lg ${highContrast ? "bg-yellow-300 text-black" : "bg-white/10"}`}
-                    aria-label="Switch camera"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Continuous Mode Toggle */}
+                    <button
+                      onClick={() => {
+                        setContinuousMode(!continuousMode);
+                        speak(continuousMode ? "Continuous mode off" : "Continuous mode on. Analyzing every 5 seconds.");
+                      }}
+                      className={`p-2 rounded-lg transition-all ${
+                        continuousMode
+                          ? "bg-green-500 animate-pulse"
+                          : highContrast
+                          ? "bg-yellow-300 text-black"
+                          : "bg-white/10"
+                      }`}
+                      aria-label={continuousMode ? "Stop continuous mode" : "Start continuous mode"}
+                    >
+                      {continuousMode ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                    </button>
+
+                    {/* Switch Camera */}
+                    <button
+                      onClick={switchCamera}
+                      className={`p-2 rounded-lg ${highContrast ? "bg-yellow-300 text-black" : "bg-white/10"}`}
+                      aria-label="Switch camera"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -696,10 +1766,27 @@ export default function VisionAssist() {
               )}
 
               {isAnalyzing && (
-                <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/80 flex items-center justify-center backdrop-blur-sm">
                   <div className="text-center">
-                    <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" />
-                    <p className="text-lg">Analyzing with AI...</p>
+                    <div className="relative w-20 h-20 mx-auto mb-4">
+                      <div className={`absolute inset-0 rounded-full border-4 border-t-transparent animate-spin ${
+                        highContrast ? "border-yellow-300" : "border-purple-500"
+                      }`} />
+                      <div className={`absolute inset-2 rounded-full border-4 border-b-transparent animate-spin ${
+                        highContrast ? "border-yellow-300/50" : "border-pink-500"
+                      }`} style={{ animationDirection: "reverse", animationDuration: "0.75s" }} />
+                      <Eye className={`absolute inset-0 m-auto w-8 h-8 ${
+                        highContrast ? "text-yellow-300" : "text-white"
+                      }`} />
+                    </div>
+                    <p className="text-lg font-medium">Analyzing with AI...</p>
+                    <p className="text-sm opacity-70 mt-1">
+                      {selectedMode === "scene" && "Understanding your surroundings"}
+                      {selectedMode === "read" && "Extracting text"}
+                      {selectedMode === "identify" && "Identifying object"}
+                      {selectedMode === "navigation" && "Finding safe paths"}
+                      {selectedMode === "color" && "Detecting colors"}
+                    </p>
                   </div>
                 </div>
               )}
@@ -732,6 +1819,17 @@ export default function VisionAssist() {
                   >
                     <Upload className="w-5 h-5" />
                     Upload Image
+                  </button>
+                  <button
+                    onClick={() => setShowDemoMode(true)}
+                    className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-sm transition-all ${
+                      highContrast
+                        ? "bg-black border border-yellow-300/50 text-yellow-300"
+                        : "bg-white/5 hover:bg-white/10 text-white/70"
+                    }`}
+                  >
+                    <Play className="w-4 h-4" />
+                    Try Demo (No Camera Needed)
                   </button>
                   <input
                     ref={fileInputRef}
@@ -788,6 +1886,33 @@ export default function VisionAssist() {
                 <div className="flex items-center gap-2">
                   {description && (
                     <>
+                      {/* Copy Button */}
+                      <button
+                        onClick={copyToClipboard}
+                        className={`p-2 rounded-lg transition-all ${
+                          copied
+                            ? "bg-green-500"
+                            : highContrast
+                            ? "bg-yellow-300 text-black"
+                            : "bg-white/10 hover:bg-white/20"
+                        }`}
+                        aria-label={copied ? "Copied!" : "Copy to clipboard"}
+                      >
+                        {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                      </button>
+
+                      {/* Share Button */}
+                      <button
+                        onClick={shareResults}
+                        className={`p-2 rounded-lg transition-all ${
+                          highContrast ? "bg-yellow-300 text-black" : "bg-white/10 hover:bg-white/20"
+                        }`}
+                        aria-label="Share results"
+                      >
+                        <Share2 className="w-5 h-5" />
+                      </button>
+
+                      {/* Speak Button */}
                       <button
                         onClick={() => (isSpeaking ? stopSpeaking() : speak(description))}
                         className={`p-2 rounded-lg transition-all ${
@@ -870,7 +1995,7 @@ export default function VisionAssist() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
             <div className={`p-4 rounded-xl ${highContrast ? "bg-yellow-300/10" : "bg-white/5"}`}>
               <div className="font-medium mb-1">🎤 Voice Commands</div>
-              <p className="opacity-70">Say "capture", "read", "navigate", or "identify" to control the app</p>
+              <p className="opacity-70">Say &quot;capture&quot;, &quot;read&quot;, &quot;navigate&quot;, or &quot;identify&quot; to control the app</p>
             </div>
             <div className={`p-4 rounded-xl ${highContrast ? "bg-yellow-300/10" : "bg-white/5"}`}>
               <div className="font-medium mb-1">⌨️ Keyboard Friendly</div>
