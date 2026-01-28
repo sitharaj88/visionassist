@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Get started with VisionAssist - Installation guide, setup instructions, and deployment options.">
+  <title>Getting Started - VisionAssist</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="icon" href="../public/favicon.ico">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <div class="header-inner">
+        <a href="index.html" class="logo">
+          <div class="logo-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          VisionAssist
+        </a>
+
+        <nav class="nav">
+          <ul class="nav-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="getting-started.html" class="active">Getting Started</a></li>
+            <li><a href="api.html">API</a></li>
+            <li><a href="accessibility.html">Accessibility</a></li>
+          </ul>
+
+          <div class="nav-buttons">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            </button>
+          </div>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero" style="padding: 3rem 0;">
+    <div class="container">
+      <h1>Getting Started</h1>
+      <p class="hero-tagline">Set up VisionAssist in your local environment</p>
+      <div class="hero-buttons" style="margin-top: 1.5rem;">
+        <a href="https://visionassist-ten.vercel.app/" class="btn btn-primary" target="_blank">Try Live Demo First</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main class="section">
+    <div class="container">
+      <!-- Prerequisites -->
+      <section class="mb-3">
+        <h2 class="section-title">Prerequisites</h2>
+        <div class="card">
+          <p>Before you begin, make sure you have the following installed:</p>
+          <ul style="list-style: disc; margin-left: 1.5rem; margin-top: 1rem;">
+            <li><strong>Node.js</strong> 18.0 or higher (<a href="https://nodejs.org/" target="_blank">Download</a>)</li>
+            <li><strong>npm</strong> 9.0 or higher (comes with Node.js)</li>
+            <li><strong>Git</strong> for cloning the repository</li>
+            <li><strong>Google Gemini API Key</strong> (<a href="https://makersuite.google.com/app/apikey" target="_blank">Get one free</a>)</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Installation -->
+      <section class="mb-3">
+        <h2 class="section-title">Installation</h2>
+
+        <div class="card mb-2">
+          <h4>Step 1: Clone the Repository</h4>
+          <div class="code-block">
+            <code>git clone https://github.com/sitharaj88/visionassist.git
+cd visionassist</code>
+          </div>
+        </div>
+
+        <div class="card mb-2">
+          <h4>Step 2: Install Dependencies</h4>
+          <div class="code-block">
+            <code>npm install</code>
+          </div>
+          <p class="text-muted mt-1">This will install all required packages including Next.js, React, and the Google AI SDK.</p>
+        </div>
+
+        <div class="card mb-2">
+          <h4>Step 3: Configure Environment Variables</h4>
+          <p>Create a <code>.env.local</code> file in the project root:</p>
+          <div class="code-block">
+            <code># .env.local
+GEMINI_API_KEY=your_api_key_here</code>
+          </div>
+          <p class="text-muted mt-1">
+            <strong>Important:</strong> Never commit your API key to version control. The <code>.env.local</code> file is already in <code>.gitignore</code>.
+          </p>
+        </div>
+
+        <div class="card">
+          <h4>Step 4: Start Development Server</h4>
+          <div class="code-block">
+            <code>npm run dev</code>
+          </div>
+          <p class="mt-1">Open <a href="http://localhost:3000" target="_blank">http://localhost:3000</a> in your browser.</p>
+        </div>
+      </section>
+
+      <!-- Getting API Key -->
+      <section class="mb-3">
+        <h2 class="section-title">Getting Your Gemini API Key</h2>
+        <div class="card">
+          <ol style="list-style: decimal; margin-left: 1.5rem;">
+            <li class="mb-1">Go to <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
+            <li class="mb-1">Sign in with your Google account</li>
+            <li class="mb-1">Click "Create API Key"</li>
+            <li class="mb-1">Copy the generated key</li>
+            <li>Paste it into your <code>.env.local</code> file</li>
+          </ol>
+          <p class="text-muted mt-2">
+            <strong>Note:</strong> The free tier includes generous usage limits sufficient for development and personal use.
+          </p>
+        </div>
+      </section>
+
+      <!-- Project Structure -->
+      <section class="mb-3">
+        <h2 class="section-title">Project Structure</h2>
+        <div class="card">
+          <div class="code-block">
+            <code>visionassist/
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── analyze/
+│   │   │       └── route.ts    # Gemini API endpoint
+│   │   ├── layout.tsx          # Root layout & metadata
+│   │   ├── page.tsx            # Home page
+│   │   └── globals.css         # Global styles
+│   ├── components/
+│   │   └── VisionAssist.tsx    # Main component
+│   └── types/
+│       └── speech.d.ts         # TypeScript declarations
+├── public/
+│   ├── manifest.json           # PWA manifest
+│   └── icon-*.png              # App icons
+├── docs/                       # Documentation (GitHub Pages)
+├── .env.local                  # Environment variables (create this)
+├── package.json
+└── next.config.ts</code>
+          </div>
+        </div>
+      </section>
+
+      <!-- Build & Deploy -->
+      <section class="mb-3">
+        <h2 class="section-title">Building for Production</h2>
+
+        <div class="card mb-2">
+          <h4>Build the Application</h4>
+          <div class="code-block">
+            <code>npm run build</code>
+          </div>
+          <p class="text-muted mt-1">Creates an optimized production build in the <code>.next</code> folder.</p>
+        </div>
+
+        <div class="card mb-2">
+          <h4>Start Production Server</h4>
+          <div class="code-block">
+            <code>npm start</code>
+          </div>
+        </div>
+      </section>
+
+      <!-- Deployment -->
+      <section class="mb-3">
+        <h2 class="section-title">Deployment</h2>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <h3>Vercel (Recommended)</h3>
+            <p>The easiest way to deploy Next.js apps.</p>
+            <ol style="list-style: decimal; margin-left: 1.5rem; margin-top: 1rem; font-size: 0.875rem;">
+              <li>Push your code to GitHub</li>
+              <li>Import project at <a href="https://vercel.com/new" target="_blank">vercel.com/new</a></li>
+              <li>Add <code>GEMINI_API_KEY</code> in Environment Variables</li>
+              <li>Deploy!</li>
+            </ol>
+          </div>
+
+          <div class="feature-card">
+            <h3>Netlify</h3>
+            <p>Alternative hosting with great performance.</p>
+            <ol style="list-style: decimal; margin-left: 1.5rem; margin-top: 1rem; font-size: 0.875rem;">
+              <li>Connect your GitHub repository</li>
+              <li>Set build command: <code>npm run build</code></li>
+              <li>Set publish directory: <code>.next</code></li>
+              <li>Add environment variables</li>
+            </ol>
+          </div>
+
+          <div class="feature-card">
+            <h3>Docker</h3>
+            <p>Containerized deployment for any platform.</p>
+            <div class="code-block" style="margin-top: 1rem;">
+              <code>docker build -t visionassist .
+docker run -p 3000:3000 visionassist</code>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Troubleshooting -->
+      <section>
+        <h2 class="section-title">Troubleshooting</h2>
+        <div class="card">
+          <h4>Camera Not Working</h4>
+          <p class="text-muted">Make sure you're accessing the app via HTTPS or localhost. Cameras require a secure context.</p>
+
+          <h4 class="mt-2">API Key Error</h4>
+          <p class="text-muted">Verify your <code>.env.local</code> file exists and contains a valid <code>GEMINI_API_KEY</code>. Restart the dev server after changes.</p>
+
+          <h4 class="mt-2">Voice Commands Not Working</h4>
+          <p class="text-muted">Web Speech API requires microphone permission. Check browser settings and ensure you're using a supported browser (Chrome, Edge, Safari).</p>
+
+          <h4 class="mt-2">Build Errors</h4>
+          <p class="text-muted">Try deleting <code>node_modules</code> and <code>.next</code> folders, then run <code>npm install</code> again.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p class="text-muted">
+        VisionAssist &copy; 2025. Built with care for accessibility.
+      </p>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

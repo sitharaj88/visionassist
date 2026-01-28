@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="VisionAssist Accessibility Features - Keyboard shortcuts, voice commands, high contrast mode, and screen reader support.">
+  <title>Accessibility - VisionAssist</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="icon" href="../public/favicon.ico">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <div class="header-inner">
+        <a href="index.html" class="logo">
+          <div class="logo-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          VisionAssist
+        </a>
+
+        <nav class="nav">
+          <ul class="nav-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="getting-started.html">Getting Started</a></li>
+            <li><a href="api.html">API</a></li>
+            <li><a href="accessibility.html" class="active">Accessibility</a></li>
+          </ul>
+
+          <div class="nav-buttons">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            </button>
+          </div>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero" style="padding: 3rem 0;">
+    <div class="container">
+      <h1>Accessibility</h1>
+      <p class="hero-tagline">Built from the ground up for users of all abilities</p>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main class="section">
+    <div class="container">
+      <!-- Overview -->
+      <section class="mb-3">
+        <h2 class="section-title">Accessibility First Design</h2>
+        <div class="card">
+          <p>VisionAssist is designed with accessibility as a core principle, not an afterthought. Every feature has been built to work seamlessly with assistive technologies and alternative input methods.</p>
+
+          <div class="features-grid mt-2" style="gap: 1rem;">
+            <div>
+              <h4>WCAG 2.1 AA Compliant</h4>
+              <p class="text-muted">Meets Web Content Accessibility Guidelines for color contrast, focus indicators, and semantic structure.</p>
+            </div>
+            <div>
+              <h4>Screen Reader Tested</h4>
+              <p class="text-muted">Works with VoiceOver (iOS/macOS), NVDA (Windows), and TalkBack (Android).</p>
+            </div>
+            <div>
+              <h4>Keyboard Navigable</h4>
+              <p class="text-muted">Full functionality available without a mouse or touch screen.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Keyboard Shortcuts -->
+      <section class="mb-3">
+        <h2 class="section-title">Keyboard Shortcuts</h2>
+        <p class="text-muted mb-2">Navigate and control the app entirely with your keyboard.</p>
+
+        <div class="card">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><kbd>1</kbd></td>
+                  <td>Switch to Scene Description mode</td>
+                </tr>
+                <tr>
+                  <td><kbd>2</kbd></td>
+                  <td>Switch to Read Text mode</td>
+                </tr>
+                <tr>
+                  <td><kbd>3</kbd></td>
+                  <td>Switch to Object Identification mode</td>
+                </tr>
+                <tr>
+                  <td><kbd>4</kbd></td>
+                  <td>Switch to Navigation mode</td>
+                </tr>
+                <tr>
+                  <td><kbd>5</kbd></td>
+                  <td>Switch to Color Detection mode</td>
+                </tr>
+                <tr>
+                  <td><kbd>Space</kbd></td>
+                  <td>Capture image (when camera is active)</td>
+                </tr>
+                <tr>
+                  <td><kbd>C</kbd></td>
+                  <td>Open/close camera</td>
+                </tr>
+                <tr>
+                  <td><kbd>V</kbd></td>
+                  <td>Activate voice command</td>
+                </tr>
+                <tr>
+                  <td><kbd>R</kbd></td>
+                  <td>Repeat last description</td>
+                </tr>
+                <tr>
+                  <td><kbd>S</kbd></td>
+                  <td>Stop speaking</td>
+                </tr>
+                <tr>
+                  <td><kbd>H</kbd></td>
+                  <td>Open history panel</td>
+                </tr>
+                <tr>
+                  <td><kbd>Q</kbd></td>
+                  <td>Open quick actions</td>
+                </tr>
+                <tr>
+                  <td><kbd>Esc</kbd></td>
+                  <td>Close any open modal/panel</td>
+                </tr>
+                <tr>
+                  <td><kbd>Tab</kbd></td>
+                  <td>Navigate between interactive elements</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Voice Commands -->
+      <section class="mb-3">
+        <h2 class="section-title">Voice Commands</h2>
+        <p class="text-muted mb-2">Speak naturally to control the app hands-free.</p>
+
+        <div class="card">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Say This</th>
+                  <th>To Do This</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>"Capture" or "Take picture"</td>
+                  <td>Capture current camera view</td>
+                </tr>
+                <tr>
+                  <td>"Scene"</td>
+                  <td>Switch to Scene Description mode</td>
+                </tr>
+                <tr>
+                  <td>"Read"</td>
+                  <td>Switch to Read Text mode</td>
+                </tr>
+                <tr>
+                  <td>"Identify"</td>
+                  <td>Switch to Object Identification mode</td>
+                </tr>
+                <tr>
+                  <td>"Navigate"</td>
+                  <td>Switch to Navigation mode</td>
+                </tr>
+                <tr>
+                  <td>"Color"</td>
+                  <td>Switch to Color Detection mode</td>
+                </tr>
+                <tr>
+                  <td>"Stop"</td>
+                  <td>Stop current speech</td>
+                </tr>
+                <tr>
+                  <td>"Repeat"</td>
+                  <td>Repeat last description</td>
+                </tr>
+                <tr>
+                  <td>"History"</td>
+                  <td>Hear how many items are in history</td>
+                </tr>
+                <tr>
+                  <td>"Last result"</td>
+                  <td>Repeat most recent analysis</td>
+                </tr>
+                <tr>
+                  <td>"Continuous on"</td>
+                  <td>Enable auto-capture every 5 seconds</td>
+                </tr>
+                <tr>
+                  <td>"Continuous off"</td>
+                  <td>Disable continuous mode</td>
+                </tr>
+                <tr>
+                  <td>"Help"</td>
+                  <td>List available commands</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="text-muted mt-2">
+            <strong>Tip:</strong> Press <kbd>V</kbd> or tap the microphone button to start listening. The app will provide audio feedback when it's ready for your command.
+          </p>
+        </div>
+      </section>
+
+      <!-- Visual Settings -->
+      <section class="mb-3">
+        <h2 class="section-title">Visual Settings</h2>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <h3>High Contrast Mode</h3>
+            <p>Yellow text on black background for maximum visibility. Optimized for users with low vision or light sensitivity.</p>
+            <p class="text-muted mt-1"><strong>Toggle:</strong> Settings panel</p>
+          </div>
+
+          <div class="feature-card">
+            <h3>Adjustable Font Size</h3>
+            <p>Scale text from 14px to 28px to match your visual needs. Affects all content including results.</p>
+            <p class="text-muted mt-1"><strong>Range:</strong> 14px - 28px</p>
+          </div>
+
+          <div class="feature-card">
+            <h3>Dark/Light Theme</h3>
+            <p>Choose your preferred color scheme. Dark mode reduces eye strain in low light; light mode provides better visibility in bright environments.</p>
+            <p class="text-muted mt-1"><strong>Default:</strong> Dark mode</p>
+          </div>
+
+          <div class="feature-card">
+            <h3>Focus Indicators</h3>
+            <p>Clear, high-visibility focus outlines (3px cyan) on all interactive elements for keyboard navigation.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Audio Settings -->
+      <section class="mb-3">
+        <h2 class="section-title">Audio Settings</h2>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <h3>Auto-Speak Results</h3>
+            <p>Automatically read analysis results aloud. Toggle off if you prefer to use a screen reader.</p>
+            <p class="text-muted mt-1"><strong>Default:</strong> On</p>
+          </div>
+
+          <div class="feature-card">
+            <h3>Sound Effects</h3>
+            <p>Audio cues for capture, analysis complete, and errors. Provides non-visual feedback for actions.</p>
+            <p class="text-muted mt-1"><strong>Default:</strong> On</p>
+          </div>
+
+          <div class="feature-card">
+            <h3>Haptic Feedback</h3>
+            <p>Vibration patterns on mobile devices: short for capture, double for complete, long for errors.</p>
+            <p class="text-muted mt-1"><strong>Mobile only</strong></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Screen Reader Support -->
+      <section class="mb-3">
+        <h2 class="section-title">Screen Reader Support</h2>
+
+        <div class="card">
+          <h4>Tested With</h4>
+          <ul style="list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem;">
+            <li><strong>VoiceOver</strong> - iOS and macOS</li>
+            <li><strong>NVDA</strong> - Windows (free)</li>
+            <li><strong>JAWS</strong> - Windows</li>
+            <li><strong>TalkBack</strong> - Android</li>
+          </ul>
+
+          <h4 class="mt-2">Implementation Details</h4>
+          <ul style="list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem;">
+            <li><strong>ARIA Labels:</strong> All buttons and controls have descriptive labels</li>
+            <li><strong>Live Regions:</strong> Status updates and results announced automatically</li>
+            <li><strong>Semantic HTML:</strong> Proper heading hierarchy, lists, and landmarks</li>
+            <li><strong>Focus Management:</strong> Focus moves logically when opening/closing panels</li>
+            <li><strong>Skip Links:</strong> Hidden skip navigation for keyboard users</li>
+          </ul>
+
+          <h4 class="mt-2">Tips for Screen Reader Users</h4>
+          <ul style="list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem;">
+            <li>Turn off "Auto-speak results" to avoid conflicts with your screen reader</li>
+            <li>Use keyboard shortcuts (1-5) to quickly switch modes</li>
+            <li>Press <kbd>H</kbd> to navigate by headings in results</li>
+            <li>The app announces when analysis is complete and results are ready</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Mobile Accessibility -->
+      <section class="mb-3">
+        <h2 class="section-title">Mobile Accessibility</h2>
+
+        <div class="card">
+          <div class="features-grid" style="gap: 1rem;">
+            <div>
+              <h4>Large Touch Targets</h4>
+              <p class="text-muted">All buttons are minimum 44x44 pixels for easy tapping. Capture button is extra large (80x80 pixels).</p>
+            </div>
+            <div>
+              <h4>Gesture Support</h4>
+              <p class="text-muted">Works with VoiceOver gestures on iOS and TalkBack gestures on Android.</p>
+            </div>
+            <div>
+              <h4>Portrait & Landscape</h4>
+              <p class="text-muted">Responsive layout adapts to any screen orientation and size.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reporting Issues -->
+      <section>
+        <h2 class="section-title">Report Accessibility Issues</h2>
+        <div class="card">
+          <p>We're committed to making VisionAssist accessible to everyone. If you encounter any accessibility barriers or have suggestions for improvement, please let us know:</p>
+
+          <ul style="list-style: disc; margin-left: 1.5rem; margin-top: 1rem;">
+            <li><a href="https://github.com/sitharaj88/visionassist/issues" target="_blank">Open a GitHub Issue</a> with the "accessibility" label</li>
+            <li>Describe the issue and which assistive technology you're using</li>
+            <li>Include steps to reproduce if applicable</li>
+          </ul>
+
+          <p class="mt-2 text-muted">We typically respond to accessibility issues within 48 hours.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p class="text-muted">
+        VisionAssist &copy; 2025. Built with care for accessibility.
+      </p>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

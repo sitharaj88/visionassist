@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="VisionAssist API Documentation - Technical reference for the image analysis endpoint.">
+  <title>API Documentation - VisionAssist</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="icon" href="../public/favicon.ico">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <div class="header-inner">
+        <a href="index.html" class="logo">
+          <div class="logo-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          VisionAssist
+        </a>
+
+        <nav class="nav">
+          <ul class="nav-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="getting-started.html">Getting Started</a></li>
+            <li><a href="api.html" class="active">API</a></li>
+            <li><a href="accessibility.html">Accessibility</a></li>
+          </ul>
+
+          <div class="nav-buttons">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            </button>
+          </div>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero" style="padding: 3rem 0;">
+    <div class="container">
+      <h1>API Documentation</h1>
+      <p class="hero-tagline">Technical reference for the VisionAssist backend</p>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main class="section">
+    <div class="container">
+      <!-- Tech Stack -->
+      <section class="mb-3">
+        <h2 class="section-title">Technology Stack</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <h3>Frontend</h3>
+            <ul style="list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem;">
+              <li>Next.js 15 (App Router)</li>
+              <li>React 19</li>
+              <li>TypeScript 5</li>
+              <li>Tailwind CSS 4</li>
+              <li>Lucide React (icons)</li>
+            </ul>
+          </div>
+
+          <div class="feature-card">
+            <h3>Backend</h3>
+            <ul style="list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem;">
+              <li>Next.js API Routes</li>
+              <li>Google Generative AI SDK</li>
+              <li>Gemini 2.0 Flash model</li>
+            </ul>
+          </div>
+
+          <div class="feature-card">
+            <h3>Browser APIs</h3>
+            <ul style="list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem;">
+              <li>Web Speech API (TTS/STT)</li>
+              <li>MediaDevices API (Camera)</li>
+              <li>Web Share API</li>
+              <li>Vibration API</li>
+              <li>localStorage</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analyze Endpoint -->
+      <section class="mb-3">
+        <h2 class="section-title">Image Analysis Endpoint</h2>
+
+        <div class="card mb-2">
+          <h3>POST /api/analyze</h3>
+          <p class="text-muted">Analyzes an image using Google Gemini AI based on the specified mode.</p>
+
+          <h4 class="mt-2">Request Body</h4>
+          <div class="code-block">
+            <code>{
+  "image": "data:image/jpeg;base64,/9j/4AAQ...",  // Base64 encoded image
+  "mode": "scene"  // One of: scene, read, identify, navigate, color
+}</code>
+          </div>
+
+          <h4 class="mt-2">Response (Success)</h4>
+          <div class="code-block">
+            <code>{
+  "description": "You are in a modern living room. To your left, about 3 feet away, there's a gray fabric sofa. Directly ahead, approximately 8 feet away, is a large window with natural light streaming in..."
+}</code>
+          </div>
+
+          <h4 class="mt-2">Response (Error)</h4>
+          <div class="code-block">
+            <code>{
+  "error": "Image is too large. Maximum size is 10MB.",
+  "code": "IMAGE_TOO_LARGE"
+}</code>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>Error Codes</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Description</th>
+                  <th>HTTP Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>API_KEY_MISSING</code></td>
+                  <td>GEMINI_API_KEY not configured</td>
+                  <td>500</td>
+                </tr>
+                <tr>
+                  <td><code>IMAGE_REQUIRED</code></td>
+                  <td>No image provided in request</td>
+                  <td>400</td>
+                </tr>
+                <tr>
+                  <td><code>IMAGE_TOO_LARGE</code></td>
+                  <td>Image exceeds 10MB limit</td>
+                  <td>400</td>
+                </tr>
+                <tr>
+                  <td><code>INVALID_MODE</code></td>
+                  <td>Unknown analysis mode specified</td>
+                  <td>400</td>
+                </tr>
+                <tr>
+                  <td><code>RATE_LIMITED</code></td>
+                  <td>Too many requests to Gemini API</td>
+                  <td>429</td>
+                </tr>
+                <tr>
+                  <td><code>CONTENT_FILTERED</code></td>
+                  <td>Image blocked by safety filters</td>
+                  <td>400</td>
+                </tr>
+                <tr>
+                  <td><code>TIMEOUT</code></td>
+                  <td>Request exceeded 30 second limit</td>
+                  <td>504</td>
+                </tr>
+                <tr>
+                  <td><code>ANALYSIS_FAILED</code></td>
+                  <td>General analysis error</td>
+                  <td>500</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analysis Modes -->
+      <section class="mb-3">
+        <h2 class="section-title">Analysis Mode Prompts</h2>
+        <p class="text-muted mb-2">Each mode uses a specialized prompt optimized for accessibility:</p>
+
+        <div class="card mb-2">
+          <h4><code>scene</code> - Scene Description</h4>
+          <div class="code-block">
+            <code>"Describe this image for a visually impaired person. Be specific about:
+- What's in the scene (people, objects, environment)
+- Spatial relationships (left, right, near, far, center)
+- Colors and lighting
+- Any text visible
+- Potential hazards or important details
+Keep the description clear, organized, and under 200 words."</code>
+          </div>
+        </div>
+
+        <div class="card mb-2">
+          <h4><code>read</code> - Text Reading (OCR)</h4>
+          <div class="code-block">
+            <code>"Extract and read all visible text in this image. Include:
+- Main text content in reading order
+- Labels, signs, or headers
+- Any fine print or secondary text
+Format the text clearly. If no text is visible, say so."</code>
+          </div>
+        </div>
+
+        <div class="card mb-2">
+          <h4><code>identify</code> - Object Identification</h4>
+          <div class="code-block">
+            <code>"Identify the main object(s) in this image. Provide:
+- What the item is (be specific with brand/model if visible)
+- Key features or characteristics
+- Typical use or purpose
+- Any warnings or important information
+Be concise and practical."</code>
+          </div>
+        </div>
+
+        <div class="card mb-2">
+          <h4><code>navigate</code> - Navigation Assistance</h4>
+          <div class="code-block">
+            <code>"Help a visually impaired person navigate this space. Describe:
+- Clear pathways and their direction (use clock positions: 12 o'clock = straight ahead)
+- Obstacles and hazards with distances
+- Doorways, stairs, or level changes
+- Safe areas to move toward
+Be specific about distances and directions."</code>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4><code>color</code> - Color Detection</h4>
+          <div class="code-block">
+            <code>"Identify colors in this image for someone who cannot see them. Be specific:
+- Use descriptive color names (not just 'blue' but 'navy blue' or 'sky blue')
+- Describe patterns if present (stripes, plaid, floral)
+- Note color combinations and how they work together
+- Mention any color-coded information
+Be helpful for clothing choices or identifying items by color."</code>
+          </div>
+        </div>
+      </section>
+
+      <!-- Client Integration -->
+      <section class="mb-3">
+        <h2 class="section-title">Client Integration</h2>
+
+        <div class="card">
+          <h4>Example: Calling the API from JavaScript</h4>
+          <div class="code-block">
+            <code>async function analyzeImage(imageDataUrl, mode) {
+  const response = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      image: imageDataUrl,
+      mode: mode, // 'scene', 'read', 'identify', 'navigate', 'color'
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Analysis failed');
+  }
+
+  const data = await response.json();
+  return data.description;
+}
+
+// Usage
+const canvas = document.createElement('canvas');
+// ... draw video frame to canvas ...
+const imageData = canvas.toDataURL('image/jpeg', 0.8);
+const description = await analyzeImage(imageData, 'scene');
+console.log(description);</code>
+          </div>
+        </div>
+      </section>
+
+      <!-- Rate Limits -->
+      <section>
+        <h2 class="section-title">Rate Limits & Best Practices</h2>
+        <div class="card">
+          <h4>Gemini API Limits</h4>
+          <ul style="list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem;">
+            <li><strong>Free tier:</strong> 60 requests per minute</li>
+            <li><strong>Image size:</strong> Max 10MB (enforced by VisionAssist)</li>
+            <li><strong>Timeout:</strong> 30 seconds per request</li>
+          </ul>
+
+          <h4 class="mt-2">Best Practices</h4>
+          <ul style="list-style: disc; margin-left: 1.5rem; margin-top: 0.5rem;">
+            <li>Compress images before sending (JPEG quality 0.8)</li>
+            <li>Implement client-side debouncing for continuous mode</li>
+            <li>Cache results in history to avoid re-analyzing same images</li>
+            <li>Handle errors gracefully with user-friendly messages</li>
+            <li>Use appropriate mode for the task to get best results</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p class="text-muted">
+        VisionAssist &copy; 2025. Built with care for accessibility.
+      </p>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

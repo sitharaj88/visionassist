@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="VisionAssist Features - Discover all the powerful features including scene description, text reading, object identification, navigation assistance, and color detection.">
+  <title>Features - VisionAssist</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="icon" href="../public/favicon.ico">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <div class="header-inner">
+        <a href="index.html" class="logo">
+          <div class="logo-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          VisionAssist
+        </a>
+
+        <nav class="nav">
+          <ul class="nav-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="features.html" class="active">Features</a></li>
+            <li><a href="getting-started.html">Getting Started</a></li>
+            <li><a href="api.html">API</a></li>
+            <li><a href="accessibility.html">Accessibility</a></li>
+          </ul>
+
+          <div class="nav-buttons">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            </button>
+          </div>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero" style="padding: 3rem 0;">
+    <div class="container">
+      <h1>Features</h1>
+      <p class="hero-tagline">Everything you need for AI-powered visual assistance</p>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main class="section">
+    <div class="container">
+      <!-- Analysis Modes -->
+      <section class="mb-3">
+        <h2 class="section-title">5 Analysis Modes</h2>
+        <p class="text-muted mb-2">Each mode is optimized with specialized AI prompts for specific visual assistance needs.</p>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </div>
+            <h3>Scene Description</h3>
+            <p>Provides comprehensive descriptions of environments with spatial awareness. Uses directional language (left, right, center) and distance indicators (near, far) for better orientation.</p>
+            <p class="text-muted mt-1"><strong>Best for:</strong> Understanding surroundings, rooms, outdoor spaces</p>
+            <p class="text-muted"><strong>Keyboard:</strong> Press <code>1</code></p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 7v14"/>
+                <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>
+              </svg>
+            </div>
+            <h3>Read Text (OCR)</h3>
+            <p>Extracts and reads text from images with high accuracy. Handles documents, signs, labels, menus, packaging, and handwritten notes.</p>
+            <p class="text-muted mt-1"><strong>Best for:</strong> Documents, signs, menus, labels, mail</p>
+            <p class="text-muted"><strong>Keyboard:</strong> Press <code>2</code></p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/>
+                <path d="M12 22V12"/>
+                <path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/>
+              </svg>
+            </div>
+            <h3>Object Identification</h3>
+            <p>Identifies specific items with detailed information including brand names, product types, and usage suggestions.</p>
+            <p class="text-muted mt-1"><strong>Best for:</strong> Products, groceries, medications, household items</p>
+            <p class="text-muted"><strong>Keyboard:</strong> Press <code>3</code></p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+              </svg>
+            </div>
+            <h3>Navigation Assistance</h3>
+            <p>Provides guidance for moving through spaces safely. Uses clock positions (12 o'clock = straight ahead) for directions and identifies obstacles, doorways, and pathways.</p>
+            <p class="text-muted mt-1"><strong>Best for:</strong> Indoor navigation, finding exits, avoiding obstacles</p>
+            <p class="text-muted"><strong>Keyboard:</strong> Press <code>4</code></p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
+                <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
+                <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
+                <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/>
+              </svg>
+            </div>
+            <h3>Color Detection</h3>
+            <p>Identifies colors with specific, descriptive names (not just "blue" but "navy blue" or "royal blue"). Perfect for matching clothes or identifying items by color.</p>
+            <p class="text-muted mt-1"><strong>Best for:</strong> Clothing, food freshness, organizing by color</p>
+            <p class="text-muted"><strong>Keyboard:</strong> Press <code>5</code></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Voice Control -->
+      <section class="mb-3">
+        <h2 class="section-title">Voice Control</h2>
+        <p class="text-muted mb-2">Fully hands-free operation with natural voice commands.</p>
+
+        <div class="card">
+          <h4>Available Voice Commands</h4>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Command</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><code>"capture"</code> or <code>"take picture"</code></td><td>Capture current camera view</td></tr>
+                <tr><td><code>"scene"</code></td><td>Switch to Scene Description mode</td></tr>
+                <tr><td><code>"read"</code></td><td>Switch to Read Text mode</td></tr>
+                <tr><td><code>"identify"</code></td><td>Switch to Object Identification mode</td></tr>
+                <tr><td><code>"navigate"</code></td><td>Switch to Navigation mode</td></tr>
+                <tr><td><code>"color"</code></td><td>Switch to Color Detection mode</td></tr>
+                <tr><td><code>"stop"</code></td><td>Stop current speech</td></tr>
+                <tr><td><code>"repeat"</code></td><td>Repeat last description</td></tr>
+                <tr><td><code>"history"</code></td><td>Read history count</td></tr>
+                <tr><td><code>"last result"</code></td><td>Repeat most recent analysis</td></tr>
+                <tr><td><code>"continuous on"</code></td><td>Enable auto-capture every 5 seconds</td></tr>
+                <tr><td><code>"continuous off"</code></td><td>Disable continuous mode</td></tr>
+                <tr><td><code>"help"</code></td><td>List available commands</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Additional Features -->
+      <section class="mb-3">
+        <h2 class="section-title">Additional Features</h2>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <h3>Analysis History</h3>
+            <p>Stores up to 10 recent analyses with thumbnails and timestamps. Quickly review or re-read previous results.</p>
+            <p class="text-muted"><strong>Keyboard:</strong> Press <code>H</code></p>
+          </div>
+
+          <div class="feature-card">
+            <h3>Quick Actions</h3>
+            <p>One-tap shortcuts for common tasks: "What's Around Me?", "Read This Now", and "Help Me Navigate".</p>
+            <p class="text-muted"><strong>Keyboard:</strong> Press <code>Q</code></p>
+          </div>
+
+          <div class="feature-card">
+            <h3>Continuous Mode</h3>
+            <p>Automatically captures and analyzes every 5 seconds for real-time assistance while moving.</p>
+          </div>
+
+          <div class="feature-card">
+            <h3>Demo Mode</h3>
+            <p>Try the app offline with 5 pre-loaded scenarios covering all analysis modes. Perfect for learning or demonstrations.</p>
+          </div>
+
+          <div class="feature-card">
+            <h3>Copy & Share</h3>
+            <p>Easily copy analysis results to clipboard or share via native sharing on mobile devices.</p>
+          </div>
+
+          <div class="feature-card">
+            <h3>Settings Persistence</h3>
+            <p>Your preferences (theme, font size, high contrast, auto-speak) are saved and restored automatically.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- PWA Features -->
+      <section>
+        <h2 class="section-title">Progressive Web App</h2>
+        <p class="text-muted mb-2">Install VisionAssist on any device for the best experience.</p>
+
+        <div class="card">
+          <div class="features-grid" style="gap: 1rem;">
+            <div>
+              <h4>Installable</h4>
+              <p class="text-muted">Add to your home screen on iOS, Android, or desktop for quick access.</p>
+            </div>
+            <div>
+              <h4>Offline Demo</h4>
+              <p class="text-muted">Demo mode works without internet connection for reliable presentations.</p>
+            </div>
+            <div>
+              <h4>Fast Loading</h4>
+              <p class="text-muted">Optimized caching for instant startup after first visit.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p class="text-muted">
+        VisionAssist &copy; 2025. Built with care for accessibility.
+      </p>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
