@@ -1955,8 +1955,9 @@ export default function VisionAssist() {
                   ? `${videoDimensions.width} / ${videoDimensions.height}`
                   : isMobile
                   ? "3 / 4"
-                  : "16 / 9",
-                maxHeight: isMobile ? "60vh" : "70vh",
+                  : "4 / 3",
+                minHeight: isMobile ? "50vh" : "400px",
+                maxHeight: isMobile ? "75vh" : "80vh",
               }}
             >
               {/* Always render video element so ref is available for camera */}
@@ -1965,7 +1966,7 @@ export default function VisionAssist() {
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 style={{ display: cameraActive && !capturedImage ? "block" : "none" }}
               />
               {capturedImage ? (
