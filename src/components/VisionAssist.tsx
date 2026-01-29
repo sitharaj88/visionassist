@@ -315,7 +315,11 @@ export default function VisionAssist() {
   const [showDemoMode, setShowDemoMode] = useState(false);
   const [videoDimensions, setVideoDimensions] = useState<{ width: number; height: number } | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  // Initial state must match server render to avoid hydration errors
+  // The inline script in layout.tsx + CSS handles visual theme immediately
+  // This state will be updated from localStorage in the useEffect below
   const [darkMode, setDarkMode] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -331,6 +335,14 @@ export default function VisionAssist() {
   // Load settings from localStorage on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    // Immediately sync with data-theme attribute (set by inline script before React hydration)
+    // This ensures React state matches the visual theme without flash
+    const currentTheme = document.documentElement.getAttribute("data-theme");
+    if (currentTheme === "light") {
+      setDarkMode(false);
+    }
+    setIsHydrated(true);
 
     // Check feature support
     setSpeechSupported("speechSynthesis" in window);
@@ -361,10 +373,8 @@ export default function VisionAssist() {
         setAutoSpeak(settings.autoSpeak ?? true);
         setSelectedMode(settings.selectedMode ?? "scene");
         setSoundEnabled(settings.soundEnabled ?? true);
-        // Use saved preference, default to dark mode
-        setDarkMode(settings.darkMode ?? true);
+        // darkMode already synced from data-theme attribute above
       }
-      // No saved settings - default to dark mode (already set in initial state)
 
       // Load history
       const savedHistory = localStorage.getItem(HISTORY_KEY);
@@ -406,6 +416,12 @@ export default function VisionAssist() {
       console.error("Error saving settings:", e);
     }
   }, [highContrast, fontSize, autoSpeak, selectedMode, soundEnabled, darkMode]);
+
+  // Sync data-theme attribute with darkMode state to prevent FOUC
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
 
   // Save history to localStorage when it changes
   useEffect(() => {
@@ -761,6 +777,10 @@ export default function VisionAssist() {
         ctx.drawImage(video, 0, 0);
         const imageData = canvas.toDataURL("image/jpeg", 0.8);
         setCapturedImage(imageData);
+
+        // Release camera after capture to save resources
+        stopCamera();
+
         analyzeImage(imageData);
         speak("Image captured. Analyzing...");
       }
@@ -1216,22 +1236,73 @@ export default function VisionAssist() {
 
   const currentMode = modes.find((m) => m.id === selectedMode)!;
 
+  // Use dark mode styling during SSR/hydration to match server render, then actual theme after hydration
+  // This prevents hydration mismatch while CSS body background shows the correct theme
+  const effectiveDarkMode = !isHydrated || darkMode;
+
+  // Determine background class
+  const getBackgroundClass = () => {
+    if (highContrast) {
+      return "bg-black text-yellow-300";
+    }
+    return effectiveDarkMode
+      ? "bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white"
+      : "bg-gradient-to-br from-slate-50 via-cyan-50 to-blue-50 text-slate-900";
+  };
+
+  // Show loading screen during hydration
+  // Modern loading screen during hydration
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 overflow-hidden">
+        {/* Background glow effects */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[100px] animate-pulse" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-blue-600/20 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '0.5s' }} />
+        </div>
+
+        <div className="relative text-center z-10">
+          {/* Animated rings */}
+          <div className="relative inline-flex items-center justify-center mb-6">
+            {/* Outer spinning ring */}
+            <div className="absolute w-24 h-24 rounded-full border-2 border-transparent border-t-cyan-400 border-r-cyan-400/50 animate-spin" style={{ animationDuration: '1.5s' }} />
+            {/* Middle spinning ring (opposite direction) */}
+            <div className="absolute w-20 h-20 rounded-full border-2 border-transparent border-b-blue-400 border-l-blue-400/50 animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
+            {/* Inner pulsing glow */}
+            <div className="absolute w-16 h-16 rounded-full bg-gradient-to-r from-cyan-500/30 to-blue-600/30 animate-pulse" />
+            {/* Logo container */}
+            <div className="relative w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+              <Eye className="w-8 h-8 text-white" />
+            </div>
+          </div>
+
+          {/* App name with gradient */}
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-cyan-100 to-white bg-clip-text text-transparent mb-3">
+            VisionAssist
+          </h1>
+
+          {/* Modern progress bar */}
+          <div className="w-48 h-1 mx-auto bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full animate-loading-progress" />
+          </div>
+
+          {/* Subtle loading text */}
+          <p className="text-cyan-300/70 text-sm mt-4 tracking-wide">Initializing...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`min-h-screen transition-colors duration-300 ${
-        highContrast
-          ? "bg-black text-yellow-300"
-          : darkMode
-          ? "bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white"
-          : "bg-gradient-to-br from-slate-50 via-cyan-50 to-blue-50 text-slate-900"
-      }`}
+      className={`min-h-screen transition-colors duration-300 ${getBackgroundClass()}`}
       style={{ fontSize: `${fontSize}px` }}
     >
       {/* Header */}
       <header className={`sticky top-0 z-50 backdrop-blur-lg border-b ${
         highContrast
           ? "bg-black/90 border-yellow-300/30"
-          : darkMode
+          : effectiveDarkMode
           ? "bg-black/30 border-white/10"
           : "bg-white/70 border-slate-200"
       }`}>
@@ -1243,7 +1314,7 @@ export default function VisionAssist() {
               </div>
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold">VisionAssist</h1>
-                <p className={`text-sm hidden sm:block ${highContrast ? "text-yellow-200" : darkMode ? "text-cyan-200" : "text-cyan-600"}`}>
+                <p className={`text-sm hidden sm:block ${highContrast ? "text-yellow-200" : effectiveDarkMode ? "text-cyan-200" : "text-cyan-600"}`}>
                   AI-Powered Visual Assistance
                 </p>
               </div>
@@ -1256,13 +1327,14 @@ export default function VisionAssist() {
                 className={`p-2 sm:p-3 rounded-xl transition-all ${
                   highContrast
                     ? "bg-yellow-300 text-black"
-                    : darkMode
+                    : effectiveDarkMode
                     ? "bg-white/10 hover:bg-white/20"
                     : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                 }`}
                 aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
               >
-                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                {/* Show Sun during SSR/hydration (matches initial darkMode=true), then correct icon after hydration */}
+                {effectiveDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
 
               {/* Quick Actions Button */}
@@ -1271,7 +1343,7 @@ export default function VisionAssist() {
                 className={`p-2 sm:p-3 rounded-xl transition-all ${
                   highContrast
                     ? "bg-yellow-300 text-black"
-                    : darkMode
+                    : effectiveDarkMode
                     ? "bg-white/10 hover:bg-white/20"
                     : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                 }`}
@@ -1286,7 +1358,7 @@ export default function VisionAssist() {
                 className={`p-2 sm:p-3 rounded-xl transition-all relative ${
                   highContrast
                     ? "bg-yellow-300 text-black"
-                    : darkMode
+                    : effectiveDarkMode
                     ? "bg-white/10 hover:bg-white/20"
                     : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                 }`}
@@ -1313,7 +1385,7 @@ export default function VisionAssist() {
                     ? "bg-red-500 animate-pulse text-white"
                     : highContrast
                     ? "bg-yellow-300 text-black"
-                    : darkMode
+                    : effectiveDarkMode
                     ? "bg-white/10 hover:bg-white/20"
                     : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                 }`}
@@ -1328,7 +1400,7 @@ export default function VisionAssist() {
                 className={`p-2 sm:p-3 rounded-xl transition-all ${
                   highContrast
                     ? "bg-yellow-300 text-black"
-                    : darkMode
+                    : effectiveDarkMode
                     ? "bg-white/10 hover:bg-white/20"
                     : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                 }`}
@@ -1343,12 +1415,12 @@ export default function VisionAssist() {
 
       {/* Settings Panel */}
       {showSettings && (
-        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${darkMode ? "bg-black/80" : "bg-black/50"}`}>
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${effectiveDarkMode ? "bg-black/80" : "bg-black/50"}`}>
           <div
             className={`w-full max-w-md rounded-2xl p-6 ${
               highContrast
                 ? "bg-black border-2 border-yellow-300"
-                : darkMode
+                : effectiveDarkMode
                 ? "bg-slate-800 text-white"
                 : "bg-white text-slate-900 shadow-xl"
             }`}
@@ -1360,7 +1432,7 @@ export default function VisionAssist() {
                 className={`p-2 rounded-lg ${
                   highContrast
                     ? "bg-yellow-300 text-black"
-                    : darkMode
+                    : effectiveDarkMode
                     ? "bg-white/10 hover:bg-white/20"
                     : "bg-slate-100 hover:bg-slate-200"
                 }`}
@@ -1507,14 +1579,24 @@ export default function VisionAssist() {
 
       {/* History Panel */}
       {showHistory && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${
+          darkMode ? "bg-black/80" : "bg-black/50"
+        }`}>
           <div
-            className={`w-full max-w-2xl max-h-[80vh] rounded-2xl overflow-hidden ${
-              highContrast ? "bg-black border-2 border-yellow-300" : "bg-slate-800"
+            className={`w-full max-w-2xl max-h-[80vh] rounded-2xl overflow-hidden shadow-xl ${
+              highContrast
+                ? "bg-black border-2 border-yellow-300"
+                : effectiveDarkMode
+                ? "bg-slate-800"
+                : "bg-white"
             }`}
           >
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-xl font-bold flex items-center gap-2">
+            <div className={`p-4 border-b flex items-center justify-between ${
+              darkMode ? "border-white/10" : "border-slate-200"
+            }`}>
+              <h2 className={`text-xl font-bold flex items-center gap-2 ${
+                darkMode ? "text-white" : "text-slate-800"
+              }`}>
                 <History className="w-5 h-5" />
                 Analysis History
               </h2>
@@ -1523,7 +1605,11 @@ export default function VisionAssist() {
                   <button
                     onClick={clearHistory}
                     className={`px-3 py-1 rounded-lg text-sm ${
-                      highContrast ? "bg-red-900 text-red-300" : "bg-red-500/20 text-red-300"
+                      highContrast
+                        ? "bg-red-900 text-red-300"
+                        : effectiveDarkMode
+                        ? "bg-red-500/20 text-red-300"
+                        : "bg-red-100 text-red-600 hover:bg-red-200"
                     }`}
                   >
                     Clear All
@@ -1531,7 +1617,13 @@ export default function VisionAssist() {
                 )}
                 <button
                   onClick={() => setShowHistory(false)}
-                  className={`p-2 rounded-lg ${highContrast ? "bg-yellow-300 text-black" : "bg-white/10"}`}
+                  className={`p-2 rounded-lg ${
+                    highContrast
+                      ? "bg-yellow-300 text-black"
+                      : effectiveDarkMode
+                      ? "bg-white/10 hover:bg-white/20"
+                      : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                  }`}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1540,7 +1632,7 @@ export default function VisionAssist() {
 
             <div className="p-4 overflow-y-auto max-h-[60vh]">
               {history.length === 0 ? (
-                <div className="text-center py-12 opacity-70">
+                <div className={`text-center py-12 ${effectiveDarkMode ? "text-white/70" : "text-slate-500"}`}>
                   <History className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>No history yet</p>
                   <p className="text-sm mt-2">Capture an image to get started</p>
@@ -1551,7 +1643,11 @@ export default function VisionAssist() {
                     <div
                       key={item.id}
                       className={`p-4 rounded-xl flex gap-4 ${
-                        highContrast ? "bg-yellow-300/10 border border-yellow-300/30" : "bg-white/5"
+                        highContrast
+                          ? "bg-yellow-300/10 border border-yellow-300/30"
+                          : effectiveDarkMode
+                          ? "bg-white/5"
+                          : "bg-slate-50 border border-slate-200"
                       }`}
                     >
                       {item.thumbnail && (
@@ -1564,20 +1660,28 @@ export default function VisionAssist() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-xs px-2 py-1 rounded ${
-                            highContrast ? "bg-yellow-300 text-black" : "bg-cyan-500/30"
+                            highContrast
+                              ? "bg-yellow-300 text-black"
+                              : effectiveDarkMode
+                              ? "bg-cyan-500/30 text-cyan-200"
+                              : "bg-cyan-100 text-cyan-700"
                           }`}>
                             {modes.find((m) => m.id === item.mode)?.label}
                           </span>
-                          <span className="text-xs opacity-50">
+                          <span className={`text-xs ${effectiveDarkMode ? "text-white/50" : "text-slate-400"}`}>
                             {new Date(item.timestamp).toLocaleString()}
                           </span>
                         </div>
-                        <p className="text-sm line-clamp-2 opacity-80">{item.description}</p>
+                        <p className={`text-sm line-clamp-2 ${effectiveDarkMode ? "text-white/80" : "text-slate-600"}`}>{item.description}</p>
                         <div className="flex gap-2 mt-2">
                           <button
                             onClick={() => loadHistoryItem(item)}
                             className={`text-xs px-3 py-1 rounded ${
-                              highContrast ? "bg-yellow-300 text-black" : "bg-white/10"
+                              highContrast
+                                ? "bg-yellow-300 text-black"
+                                : effectiveDarkMode
+                                ? "bg-white/10 hover:bg-white/20 text-white"
+                                : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                             }`}
                           >
                             Load
@@ -1585,14 +1689,22 @@ export default function VisionAssist() {
                           <button
                             onClick={() => speak(item.description)}
                             className={`text-xs px-3 py-1 rounded ${
-                              highContrast ? "bg-yellow-300 text-black" : "bg-white/10"
+                              highContrast
+                                ? "bg-yellow-300 text-black"
+                                : effectiveDarkMode
+                                ? "bg-white/10 hover:bg-white/20 text-white"
+                                : "bg-slate-200 hover:bg-slate-300 text-slate-700"
                             }`}
                           >
                             Read
                           </button>
                           <button
                             onClick={() => deleteHistoryItem(item.id)}
-                            className="text-xs px-3 py-1 rounded bg-red-500/20 text-red-300"
+                            className={`text-xs px-3 py-1 rounded ${
+                              darkMode
+                                ? "bg-red-500/20 text-red-300 hover:bg-red-500/30"
+                                : "bg-red-100 text-red-600 hover:bg-red-200"
+                            }`}
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -1609,20 +1721,36 @@ export default function VisionAssist() {
 
       {/* Quick Actions Panel */}
       {showQuickActions && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-4">
+        <div className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 ${
+          darkMode ? "bg-black/80" : "bg-black/50"
+        }`}>
           <div
-            className={`w-full max-w-md rounded-2xl ${
-              highContrast ? "bg-black border-2 border-yellow-300" : "bg-slate-800"
+            className={`w-full max-w-md rounded-2xl shadow-xl ${
+              highContrast
+                ? "bg-black border-2 border-yellow-300"
+                : effectiveDarkMode
+                ? "bg-slate-800"
+                : "bg-white"
             }`}
           >
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <h2 className="text-xl font-bold flex items-center gap-2">
+            <div className={`p-4 border-b flex items-center justify-between ${
+              darkMode ? "border-white/10" : "border-slate-200"
+            }`}>
+              <h2 className={`text-xl font-bold flex items-center gap-2 ${
+                darkMode ? "text-white" : "text-slate-800"
+              }`}>
                 <Zap className="w-5 h-5" />
                 Quick Actions
               </h2>
               <button
                 onClick={() => setShowQuickActions(false)}
-                className={`p-2 rounded-lg ${highContrast ? "bg-yellow-300 text-black" : "bg-white/10"}`}
+                className={`p-2 rounded-lg ${
+                  highContrast
+                    ? "bg-yellow-300 text-black"
+                    : effectiveDarkMode
+                    ? "bg-white/10 hover:bg-white/20"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1634,15 +1762,17 @@ export default function VisionAssist() {
                 className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all ${
                   highContrast
                     ? "bg-yellow-300/10 border border-yellow-300 hover:bg-yellow-300/20"
-                    : "bg-white/5 hover:bg-white/10"
+                    : effectiveDarkMode
+                    ? "bg-white/5 hover:bg-white/10"
+                    : "bg-slate-50 hover:bg-slate-100 border border-slate-200"
                 }`}
               >
-                <div className={`p-3 rounded-full ${highContrast ? "bg-yellow-300 text-black" : "bg-cyan-500"}`}>
+                <div className={`p-3 rounded-full text-white ${highContrast ? "bg-yellow-300 text-black" : "bg-cyan-500"}`}>
                   <Eye className="w-6 h-6" />
                 </div>
                 <div className="text-left">
-                  <div className="font-semibold">What&apos;s Around Me?</div>
-                  <div className="text-sm opacity-70">Quick scene description</div>
+                  <div className={`font-semibold ${effectiveDarkMode ? "text-white" : "text-slate-800"}`}>What&apos;s Around Me?</div>
+                  <div className={`text-sm ${effectiveDarkMode ? "text-white/70" : "text-slate-500"}`}>Quick scene description</div>
                 </div>
               </button>
 
@@ -1651,15 +1781,17 @@ export default function VisionAssist() {
                 className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all ${
                   highContrast
                     ? "bg-yellow-300/10 border border-yellow-300 hover:bg-yellow-300/20"
-                    : "bg-white/5 hover:bg-white/10"
+                    : effectiveDarkMode
+                    ? "bg-white/5 hover:bg-white/10"
+                    : "bg-slate-50 hover:bg-slate-100 border border-slate-200"
                 }`}
               >
-                <div className={`p-3 rounded-full ${highContrast ? "bg-yellow-300 text-black" : "bg-blue-500"}`}>
+                <div className={`p-3 rounded-full text-white ${highContrast ? "bg-yellow-300 text-black" : "bg-blue-500"}`}>
                   <BookOpen className="w-6 h-6" />
                 </div>
                 <div className="text-left">
-                  <div className="font-semibold">Read This Now</div>
-                  <div className="text-sm opacity-70">Extract and read text</div>
+                  <div className={`font-semibold ${effectiveDarkMode ? "text-white" : "text-slate-800"}`}>Read This Now</div>
+                  <div className={`text-sm ${effectiveDarkMode ? "text-white/70" : "text-slate-500"}`}>Extract and read text</div>
                 </div>
               </button>
 
@@ -1668,15 +1800,17 @@ export default function VisionAssist() {
                 className={`w-full p-4 rounded-xl flex items-center gap-4 transition-all ${
                   highContrast
                     ? "bg-yellow-300/10 border border-yellow-300 hover:bg-yellow-300/20"
-                    : "bg-white/5 hover:bg-white/10"
+                    : effectiveDarkMode
+                    ? "bg-white/5 hover:bg-white/10"
+                    : "bg-slate-50 hover:bg-slate-100 border border-slate-200"
                 }`}
               >
-                <div className={`p-3 rounded-full ${highContrast ? "bg-yellow-300 text-black" : "bg-green-500"}`}>
+                <div className={`p-3 rounded-full text-white ${highContrast ? "bg-yellow-300 text-black" : "bg-green-500"}`}>
                   <Navigation className="w-6 h-6" />
                 </div>
                 <div className="text-left">
-                  <div className="font-semibold">Help Me Navigate</div>
-                  <div className="text-sm opacity-70">Find paths and obstacles</div>
+                  <div className={`font-semibold ${effectiveDarkMode ? "text-white" : "text-slate-800"}`}>Help Me Navigate</div>
+                  <div className={`text-sm ${effectiveDarkMode ? "text-white/70" : "text-slate-500"}`}>Find paths and obstacles</div>
                 </div>
               </button>
             </div>
@@ -1879,7 +2013,7 @@ export default function VisionAssist() {
                       : "bg-gradient-to-r from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/30 text-white"
                     : highContrast
                     ? "bg-black border-2 border-yellow-300"
-                    : darkMode
+                    : effectiveDarkMode
                     ? "bg-white/10 hover:bg-white/20"
                     : "bg-white hover:bg-slate-100 shadow-md border border-slate-200"
                 }`}
@@ -1903,12 +2037,12 @@ export default function VisionAssist() {
             className={`rounded-2xl overflow-hidden ${
               highContrast
                 ? "bg-black border-2 border-yellow-300"
-                : darkMode
+                : effectiveDarkMode
                 ? "bg-white/5 backdrop-blur-lg"
                 : "bg-white shadow-lg border border-slate-200"
             }`}
           >
-            <div className={`p-4 border-b ${darkMode ? "border-white/10" : "border-slate-200"}`}>
+            <div className={`p-4 border-b ${effectiveDarkMode ? "border-white/10" : "border-slate-200"}`}>
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold flex items-center gap-2">
                   <Camera className="w-5 h-5" />
@@ -1950,14 +2084,19 @@ export default function VisionAssist() {
             <div
               className="relative bg-black overflow-hidden flex items-center justify-center"
               style={{
-                // Use video dimensions for aspect ratio, or sensible defaults
-                aspectRatio: videoDimensions
-                  ? `${videoDimensions.width} / ${videoDimensions.height}`
-                  : isMobile
-                  ? "9 / 16"  // Portrait for mobile cameras
-                  : "16 / 9", // Landscape for desktop
-                minHeight: isMobile ? "60vh" : "500px",
-                maxHeight: isMobile ? "80vh" : "85vh",
+                // Smart sizing: use video dimensions when available, otherwise responsive defaults
+                ...(videoDimensions && cameraActive
+                  ? {
+                      // When camera is active with known dimensions, use aspect ratio
+                      aspectRatio: `${videoDimensions.width} / ${videoDimensions.height}`,
+                      width: "100%",
+                      maxHeight: isMobile ? "75vh" : "calc(100vh - 280px)",
+                    }
+                  : {
+                      // Default: fill available height
+                      height: isMobile ? "60vh" : "calc(100vh - 320px)",
+                      minHeight: isMobile ? "300px" : "400px",
+                    }),
               }}
             >
               {/* Always render video element so ref is available for camera */}
@@ -1966,14 +2105,14 @@ export default function VisionAssist() {
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover"
                 style={{ display: cameraActive && !capturedImage ? "block" : "none" }}
               />
               {capturedImage ? (
                 <img
                   src={capturedImage}
                   alt="Captured"
-                  className="absolute inset-0 w-full h-full object-contain"
+                  className="absolute inset-0 w-full h-full object-contain bg-black"
                 />
               ) : error && error.includes("permission") ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6">
@@ -2083,7 +2222,7 @@ export default function VisionAssist() {
                     } ${
                       highContrast
                         ? "bg-black border-2 border-yellow-300"
-                        : darkMode
+                        : effectiveDarkMode
                         ? "bg-white/10 hover:bg-white/20"
                         : "bg-slate-200 hover:bg-slate-300"
                     }`}
@@ -2096,7 +2235,7 @@ export default function VisionAssist() {
                     className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-sm transition-all active:scale-95 ${
                       highContrast
                         ? "bg-black border border-yellow-300/50 text-yellow-300"
-                        : darkMode
+                        : effectiveDarkMode
                         ? "bg-white/5 hover:bg-white/10 text-white/70"
                         : "bg-slate-100 hover:bg-slate-200 text-slate-600"
                     }`}
@@ -2121,7 +2260,7 @@ export default function VisionAssist() {
                     className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${
                       highContrast
                         ? "bg-black border-2 border-yellow-300"
-                        : darkMode
+                        : effectiveDarkMode
                         ? "bg-white/10 hover:bg-white/20"
                         : "bg-slate-200 hover:bg-slate-300"
                     }`}
@@ -2152,12 +2291,12 @@ export default function VisionAssist() {
             className={`rounded-2xl ${
               highContrast
                 ? "bg-black border-2 border-yellow-300"
-                : darkMode
+                : effectiveDarkMode
                 ? "bg-white/5 backdrop-blur-lg"
                 : "bg-white shadow-lg border border-slate-200"
             }`}
           >
-            <div className={`p-4 border-b ${darkMode ? "border-white/10" : "border-slate-200"}`}>
+            <div className={`p-4 border-b ${effectiveDarkMode ? "border-white/10" : "border-slate-200"}`}>
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold flex items-center gap-2">
                   {currentMode.icon}
@@ -2174,7 +2313,7 @@ export default function VisionAssist() {
                             ? "bg-green-500 text-white"
                             : highContrast
                             ? "bg-yellow-300 text-black"
-                            : darkMode
+                            : effectiveDarkMode
                             ? "bg-white/10 hover:bg-white/20"
                             : "bg-slate-100 hover:bg-slate-200"
                         }`}
@@ -2189,7 +2328,7 @@ export default function VisionAssist() {
                         className={`p-2 rounded-lg transition-all ${
                           highContrast
                             ? "bg-yellow-300 text-black"
-                            : darkMode
+                            : effectiveDarkMode
                             ? "bg-white/10 hover:bg-white/20"
                             : "bg-slate-100 hover:bg-slate-200"
                         }`}
@@ -2206,7 +2345,7 @@ export default function VisionAssist() {
                             ? "bg-green-500 animate-pulse text-white"
                             : highContrast
                             ? "bg-yellow-300 text-black"
-                            : darkMode
+                            : effectiveDarkMode
                             ? "bg-white/10 hover:bg-white/20"
                             : "bg-slate-100 hover:bg-slate-200"
                         }`}

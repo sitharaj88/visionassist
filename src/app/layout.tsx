@@ -45,13 +45,37 @@ export const metadata: Metadata = {
   },
 };
 
+// Inline script to prevent FOUC (Flash of Unstyled Content) on theme load
+const themeInitScript = `
+  (function() {
+    try {
+      var stored = localStorage.getItem('visionassist-settings');
+      if (stored) {
+        var settings = JSON.parse(stored);
+        if (settings.darkMode === false) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

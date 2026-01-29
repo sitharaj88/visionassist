@@ -5,6 +5,21 @@
   --foreground: #ffffff;
 }
 
+/* Theme-based initial styles to prevent FOUC */
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background: linear-gradient(to bottom right, #0f172a, #172554, #0f172a);
+  color: #ffffff;
+  color-scheme: dark;
+}
+
+html[data-theme="light"],
+html[data-theme="light"] body {
+  background: linear-gradient(to bottom right, #f8fafc, #ecfeff, #eff6ff);
+  color: #0f172a;
+  color-scheme: light;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -125,4 +140,24 @@ body {
   50% {
     transform: scaleY(1);
   }
+}
+
+/* Modern loading progress animation */
+@keyframes loadingProgress {
+  0% {
+    width: 0%;
+    margin-left: 0%;
+  }
+  50% {
+    width: 60%;
+    margin-left: 20%;
+  }
+  100% {
+    width: 0%;
+    margin-left: 100%;
+  }
+}
+
+.animate-loading-progress {
+  animation: loadingProgress 1.5s ease-in-out infinite;
 }
