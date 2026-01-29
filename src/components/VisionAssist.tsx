@@ -1948,16 +1948,16 @@ export default function VisionAssist() {
             </div>
 
             <div
-              className="relative bg-black overflow-hidden"
+              className="relative bg-black overflow-hidden flex items-center justify-center"
               style={{
-                // Dynamic aspect ratio: use video dimensions if available, otherwise default to 4:3 on mobile, 16:9 on desktop
+                // Use video dimensions for aspect ratio, or sensible defaults
                 aspectRatio: videoDimensions
                   ? `${videoDimensions.width} / ${videoDimensions.height}`
                   : isMobile
-                  ? "3 / 4"
-                  : "4 / 3",
-                minHeight: isMobile ? "50vh" : "400px",
-                maxHeight: isMobile ? "75vh" : "80vh",
+                  ? "9 / 16"  // Portrait for mobile cameras
+                  : "16 / 9", // Landscape for desktop
+                minHeight: isMobile ? "60vh" : "500px",
+                maxHeight: isMobile ? "80vh" : "85vh",
               }}
             >
               {/* Always render video element so ref is available for camera */}
@@ -1966,14 +1966,14 @@ export default function VisionAssist() {
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
                 style={{ display: cameraActive && !capturedImage ? "block" : "none" }}
               />
               {capturedImage ? (
                 <img
                   src={capturedImage}
                   alt="Captured"
-                  className="w-full h-full object-contain"
+                  className="absolute inset-0 w-full h-full object-contain"
                 />
               ) : error && error.includes("permission") ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6">
@@ -2031,8 +2031,8 @@ export default function VisionAssist() {
               )}
 
               {isAnalyzing && (
-                <div className="absolute inset-0 bg-black/80 flex items-center justify-center backdrop-blur-sm">
-                  <div className="text-center">
+                <div className="absolute inset-0 z-20 bg-black/80 flex items-center justify-center backdrop-blur-sm">
+                  <div className="text-center text-white">
                     <div className="relative w-20 h-20 mx-auto mb-4">
                       <div className={`absolute inset-0 rounded-full border-4 border-t-transparent animate-spin ${
                         highContrast ? "border-yellow-300" : "border-cyan-500"
